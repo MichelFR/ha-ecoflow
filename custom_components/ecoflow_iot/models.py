@@ -32,6 +32,10 @@ class DeviceState:
     online: bool = True
     data_source: DataSource = DataSource.UNKNOWN
     last_mqtt_ts: float | None = None
+    # When the last *full* quota snapshot was merged (HTTP quota/all or a
+    # latestQuotas reply). MQTT pushes are partial, so this is what bounds how
+    # stale an individual field can get.
+    last_full_ts: float | None = None
 
     def merge_quota(self, new_values: dict[str, Any], source: DataSource) -> None:
         """Merge a quota update into the current snapshot."""

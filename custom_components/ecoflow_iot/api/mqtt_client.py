@@ -33,7 +33,9 @@ from ..models import Certification, ConnectionState
 
 _LOGGER = logging.getLogger(__name__)
 
-QuotaCallback = Callable[[str, dict[str, Any]], None]
+# (sn, values, full) — ``full`` is True when the payload is a complete quota
+# snapshot (a latestQuotas reply) rather than a partial push.
+QuotaCallback = Callable[[str, dict[str, Any], bool], None]
 StatusCallback = Callable[[str, bool], None]
 StateCallback = Callable[[ConnectionState], None]
 AuthFailureCallback = Callable[[], Awaitable[None]]
@@ -184,14 +186,14 @@ class EcoFlowMqttClient:
         if sn is None:
             return
         if suffix == TOPIC_QUOTA:
-            self._on_quota(sn, _unwrap_quota(payload))
+            self._on_quota(sn, _unwrap_quota(payload), False)
         elif suffix == TOPIC_GET_REPLY:
             # Reply to an active "latestQuotas" pull: the snapshot is under
             # ``data`` (some devices answer here, others push on the quota topic
             # instead — either way keeps us fresh). Ignore pure acks.
             data = _extract_reply_quota(payload)
             if data:
-                self._on_quota(sn, data)
+                self._on_quota(sn, data, True)
         elif suffix == TOPIC_STATUS:
             self._on_status(sn, _parse_status(payload))
         elif suffix == TOPIC_SET_REPLY:
@@ -299,6 +301,13 @@ def _extract_reply_quota(payload: dict[str, Any]) -> dict[str, Any] | None:
     for key in ("data", "params", "param"):
         value = payload.get(key)
         if isinstance(value, dict) and value:
+            # The app-style reply nests the actual values one level deeper
+            # (``data.quotaMap``); merge those, not the wrapper — otherwise the
+            # reply pollutes the device state with a nested dict while still
+            # counting as fresh MQTT data.
+            quota_map = value.get("quotaMap")
+            if isinstance(quota_map, dict) and quota_map:
+                return quota_map
             return value
     return None
 

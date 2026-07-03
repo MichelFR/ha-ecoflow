@@ -128,12 +128,14 @@ def make_coordinator(now: float = 1000.0) -> EcoFlowCoordinator:
             quota={"value": "fresh"},
             data_source=DataSource.MQTT,
             last_mqtt_ts=now - 10,
+            last_full_ts=now - 10,
         ),
         "stale": DeviceState(
             sn="stale",
             quota={"value": "stale"},
             data_source=DataSource.MQTT,
             last_mqtt_ts=now - 121,
+            last_full_ts=now - 121,
         ),
         "never": DeviceState(sn="never", quota={"value": "never"}),
     }
@@ -158,6 +160,34 @@ def test_http_fallback_polls_only_stale_mqtt_devices(monkeypatch):
     assert coord.data["fresh"].data_source is DataSource.MQTT
     assert coord.data["stale"].quota["polled"] == "stale"
     assert coord.data["stale"].data_source is DataSource.HTTP
+
+
+def test_full_resync_when_mqtt_fresh_but_full_snapshot_overdue(monkeypatch):
+    """Partial MQTT pushes must not mask per-field staleness forever."""
+    monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
+    coord = make_coordinator()
+    # MQTT looks alive (recent partial push) but no full snapshot for 200s.
+    coord.data["fresh"].last_full_ts = 1000.0 - 200
+
+    asyncio.run(coord._async_update_data())
+
+    assert "fresh" in coord._http.calls
+    # Resynced (full snapshot merged) without demoting the live source.
+    assert coord.data["fresh"].quota == {"value": "fresh", "polled": "fresh"}
+    assert coord.data["fresh"].data_source is DataSource.MQTT
+    assert coord.data["fresh"].last_full_ts == 1000.0
+
+
+def test_full_quota_reply_marks_full_snapshot(monkeypatch):
+    monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
+    coord = make_coordinator()
+
+    coord._handle_quota("never", {"a": 1}, False)
+    assert coord.data["never"].last_full_ts is None
+
+    coord._handle_quota("never", {"a": 2}, True)
+    assert coord.data["never"].last_full_ts == 1000.0
+    assert coord.data["never"].last_mqtt_ts == 1000.0
 
 
 def test_active_refresh_publishes_latest_quotas_for_online_devices(monkeypatch):

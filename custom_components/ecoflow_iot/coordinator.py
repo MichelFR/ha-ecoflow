@@ -2,7 +2,10 @@
 
 Live data arrives via MQTT and is pushed to entities immediately. The periodic
 ``DataUpdateCoordinator`` tick only hits the cloud REST API when MQTT is
-disconnected or has gone stale, and to refresh any HTTP-only fields. Control
+disconnected or has gone stale, when a device has gone too long without a
+*full* quota snapshot (MQTT pushes are partial, so individual fields can
+freeze while the device still looks fresh), and to refresh any HTTP-only
+fields. Control
 commands are published over MQTT (awaiting the device's ``set_reply``) and fall
 back to an HTTP ``PUT`` if MQTT is unavailable or unacknowledged.
 """
@@ -116,6 +119,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             try:
                 state.quota = await self._http.get_all_quota(sn)
                 state.data_source = DataSource.HTTP
+                state.last_full_ts = time.time()
             except EcoFlowError as err:
                 _LOGGER.warning("Initial quota fetch failed for %s: %s", sn, err)
             device = resolve_device(sn, state.quota)
@@ -221,17 +225,25 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
     async def _async_update_data(self) -> dict[str, DeviceState]:
         """Periodic tick: poll HTTP for devices MQTT cannot supply freshly."""
         stale_sns = self._stale_mqtt_sns()
-        for sn in stale_sns:
+        resync_sns = self._full_snapshot_overdue_sns() - stale_sns
+        for sn in stale_sns | resync_sns:
             try:
                 quota = await self._http.get_all_quota(sn)
             except EcoFlowError as err:
                 _LOGGER.debug("HTTP poll failed for %s: %s", sn, err)
                 continue
             state = self.data.get(sn)
-            if state is not None:
+            if state is None:
+                continue
+            if sn in stale_sns:
                 state.merge_quota(quota, DataSource.HTTP)
+            else:
+                # MQTT is alive but has only delivered partial pushes lately;
+                # resync the full snapshot without demoting the live source.
+                state.quota.update(quota)
+            state.last_full_ts = time.time()
 
-        await self._async_refresh_http_only(exclude=stale_sns)
+        await self._async_refresh_http_only(exclude=stale_sns | resync_sns)
         return self.data
 
     async def _async_refresh_http_only(self, *, exclude: set[str] | None = None) -> None:
@@ -252,6 +264,26 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             state = self.data.get(sn)
             if state is not None:
                 state.quota.update(quota)
+                state.last_full_ts = time.time()
+
+    def _full_snapshot_overdue_sns(self) -> set[str]:
+        """Return devices without a recent *full* quota snapshot.
+
+        Devices push partial MQTT updates, so any single push keeps
+        ``last_mqtt_ts`` fresh while fields absent from those pushes can stay
+        frozen for hours. Requiring a full snapshot (HTTP ``quota/all`` or a
+        ``latestQuotas`` reply) at most ``stale_seconds`` old bounds how stale
+        any individual field can get — the same effect as reloading the entry,
+        without the reload.
+        """
+        now = time.time()
+        overdue: set[str] = set()
+        for sn in self.devices:
+            state = self.data.get(sn)
+            last_full = state.last_full_ts if state is not None else None
+            if last_full is None or now - last_full > self._stale_seconds:
+                overdue.add(sn)
+        return overdue
 
     def _stale_mqtt_sns(self) -> set[str]:
         """Return devices that need HTTP fallback because MQTT is stale."""
@@ -270,12 +302,14 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
     # ---- MQTT callbacks (run on the event loop) ----
 
     @callback
-    def _handle_quota(self, sn: str, values: dict[str, Any]) -> None:
+    def _handle_quota(self, sn: str, values: dict[str, Any], full: bool = False) -> None:
         state = self.data.get(sn)
         if state is None:
             return
         state.merge_quota(values, DataSource.MQTT)
         state.last_mqtt_ts = time.time()
+        if full:
+            state.last_full_ts = state.last_mqtt_ts
         self.async_set_updated_data(self.data)
 
     @callback
