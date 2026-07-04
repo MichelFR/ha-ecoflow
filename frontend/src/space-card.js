@@ -448,36 +448,13 @@ export class EcoFlowSpaceCard extends LitElement {
     return { n: raw == null || raw === "" ? "–" : String(raw), u: "" };
   }
 
-  /* Direction label for the grid overlay, mirroring the house card: "From
-   * grid" while the grid feeds the home or charges the battery, "To grid" only
-   * on true utility export (exportToGrid — the raw port sign also goes negative
-   * while the device merely feeds the home), else plain "Grid". */
-  _gridDirLabel() {
-    const s = this._flowStates();
-    const importing =
-      s.loadFromGrid > ACTIVE_W ||
-      s.chargeFromGrid > ACTIVE_W ||
-      (!Number.isFinite(s.loadFromGrid) && s.grid > ACTIVE_W);
-    if (importing) return this._t("house.from_grid");
-    if (s.exportToGrid > ACTIVE_W) return this._t("house.to_grid");
-    return this._t("house.grid");
-  }
-
   /* Build an overlay's display: preset defaults (label/icon/format/colour/slot)
    * merged with any explicit overrides. Value source priority: template >
    * explicit entity > explicit slot > preset slot (auto-discovered). */
   _overlayView(ov) {
     const p = ov.preset ? OVERLAY_PRESETS[ov.preset] : null;
     const view = {
-      label:
-        ov.label ??
-        (ov.preset === "grid" &&
-        !isTemplate(ov.template) &&
-        !(ov.entity && isEntityId(ov.entity))
-          ? this._gridDirLabel()
-          : p
-            ? this._t(p.labelKey)
-            : ""),
+      label: ov.label ?? (p ? this._t(p.labelKey) : ""),
       icon: ov.icon ?? p?.icon,
       num: "",
       unit: "",
@@ -486,6 +463,57 @@ export class EcoFlowSpaceCard extends LitElement {
       secondary: "",
       dot: ov.dot,
     };
+
+    // The auto-bound grid overlay mirrors the House card's grid figure exactly:
+    // "From grid" shows load_from_grid (the home load actually met by the
+    // grid), "To grid" the derived exportToGrid — the grid_power port alone is
+    // the wrong signal for both value and direction (it reads negative
+    // whenever the device merely feeds the home). An explicit entity/template/
+    // slot binding keeps the generic path below.
+    if (
+      ov.preset === "grid" &&
+      !isTemplate(ov.template) &&
+      !(ov.entity && isEntityId(ov.entity)) &&
+      !ov.slot
+    ) {
+      const s = this._flowStates();
+      const fromGrid = Number.isFinite(s.loadFromGrid)
+        ? Math.max(0, s.loadFromGrid)
+        : null;
+      const importing = fromGrid != null ? fromGrid > ACTIVE_W : s.grid > ACTIVE_W;
+      const exporting = !importing && s.exportToGrid > ACTIVE_W;
+      const value = importing
+        ? fromGrid != null
+          ? fromGrid
+          : s.grid
+        : exporting
+          ? s.exportToGrid
+          : fromGrid != null
+            ? 0
+            : Math.abs(s.grid || 0);
+      const f = this._fmt("power-abs", value);
+      view.num = f.n;
+      view.unit = ov.unit ?? f.u;
+      view.label =
+        ov.label ??
+        (importing
+          ? this._t("house.from_grid")
+          : exporting
+            ? this._t("house.to_grid")
+            : this._t("house.grid"));
+      if (!view.color) {
+        view.color = importing ? C_IMPORT : exporting ? C_EXPORT : null;
+      }
+      view.entityId =
+        ov.tap_entity ||
+        (importing && fromGrid != null
+          ? this._slotEntity(SLOT_LOAD_FROM_GRID)
+          : null) ||
+        this._slotEntity(SLOT_GRID) ||
+        this._slotEntity(SLOT_GRID_RAW);
+      if (ov.secondary) view.secondary = this._resolveValue(ov.secondary);
+      return view;
+    }
 
     if (isTemplate(ov.template)) {
       const r = this._tmplResults[ov.template];
