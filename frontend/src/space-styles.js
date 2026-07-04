@@ -15,7 +15,7 @@ export const spaceCardStyles = css`
     /* App-style dark palette (self-contained so light HA themes still match). */
     --sp-text: #f1f4f7;
     --sp-muted: #9aa3ad;
-    --sp-pill: rgba(8, 10, 12, 0.66);
+    --sp-pill: rgba(8, 10, 12, 0.78);
     --sp-tile: rgba(255, 255, 255, 0.05);
     --sp-tile-border: rgba(255, 255, 255, 0.07);
     --sp-pos: #58d18b;
@@ -287,8 +287,9 @@ export const spaceCardStyles = css`
     padding: 7px 13px;
     pointer-events: auto;
     cursor: default;
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+    /* No backdrop blur: the pills sit on the animating flow lotties, so a
+       backdrop-filter would be re-blurred every frame — a constant GPU cost on
+       mobile. The slightly more opaque pill keeps the text readable instead. */
     white-space: nowrap;
     box-shadow: 0 3px 14px rgba(0, 0, 0, 0.32);
   }
@@ -604,20 +605,17 @@ export const spaceCardStyles = css`
     white-space: nowrap;
   }
   .fc-current {
-    transform-box: fill-box;
-    transform-origin: bottom;
     animation: fc-pulse 1.5s ease-in-out infinite;
     filter: drop-shadow(0 0 3px var(--energy-solar-color, #ff9800));
   }
+  /* opacity-only: a scaleY pulse would re-rasterize the drop-shadow every frame */
   @keyframes fc-pulse {
     0%,
     100% {
       opacity: 1;
-      transform: scaleY(1);
     }
     50% {
       opacity: 0.6;
-      transform: scaleY(1.04);
     }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -651,6 +649,33 @@ export const spaceCardStyles = css`
   }
   .fc-tip-line .v {
     fill: var(--primary-text-color);
+    font-weight: 700;
+  }
+
+  /* total solar energy readout (taps through to the entity's more-info) */
+  .dlg-total {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px 10px;
+    border: none;
+    border-radius: 12px;
+    background: var(--secondary-background-color);
+    color: var(--primary-text-color);
+    font: inherit;
+    cursor: pointer;
+  }
+  .dlg-total ha-icon {
+    --mdc-icon-size: 20px;
+    color: var(--energy-solar-color, #ff9800);
+  }
+  .dlg-total-label {
+    flex: 1;
+    text-align: left;
+  }
+  .dlg-total-val {
     font-weight: 700;
   }
 

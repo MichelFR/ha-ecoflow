@@ -10,7 +10,7 @@
 import { LitElement, html, svg } from "lit";
 import { CARD_TYPE, assetUrl } from "./const.js";
 import { deviceImageUrl, imageUrlForKey, webpVariant } from "./device-image.js";
-import { entityMap, streamDevices } from "./entities.js";
+import { entityMap, relevantStatesChanged, streamDevices } from "./entities.js";
 import {
   fetchHourlyWh,
   fetchSolarForecasts,
@@ -144,6 +144,23 @@ export class EcoFlowEnergyCard extends LitElement {
       return override;
     }
     return this._map?.[slot];
+  }
+
+  /* Only re-render for hass changes that touch what the card shows — hass is
+   * replaced on EVERY state change anywhere in HA (several per second with the
+   * Stream's MQTT push cadence). Anything else (config, dialogs, timers,
+   * template results via requestUpdate) always passes. */
+  shouldUpdate(changed) {
+    if (!(changed.size === 1 && changed.has("hass"))) return true;
+    if (!this._map) return true; // before the first full render
+    const ids = Object.values(this._map);
+    for (const v of Object.values(this._config?.entities || {})) {
+      if (isEntityId(v) && !isTemplate(v)) ids.push(v);
+    }
+    for (const item of Array.isArray(this._config?.stats) ? this._config.stats : []) {
+      if (item?.entity) ids.push(item.entity);
+    }
+    return relevantStatesChanged(changed.get("hass"), this.hass, ids);
   }
 
   /* -- async data: today's total, forecast, hourly -- */
@@ -464,15 +481,6 @@ export class EcoFlowEnergyCard extends LitElement {
                 (1 - pct / 100)
               ).toFixed(1)}"
             ></circle>
-            ${dir
-              ? svg`<circle
-                  class="ring-spin ${dir} ${flowing ? "show" : ""}"
-                  cx="50"
-                  cy="50"
-                  r="44"
-                  stroke-dasharray="16 261"
-                ></circle>`
-              : ""}
             ${ticks.map((t) => {
               const a = (Math.max(0, Math.min(100, t.v)) / 100) * 2 * Math.PI;
               const sin = Math.sin(a);
@@ -485,6 +493,14 @@ export class EcoFlowEnergyCard extends LitElement {
                 y2=${(50 - 48.5 * cos).toFixed(1)}
               ><title>${t.label} ${Math.round(t.v)}%</title></line>`;
             })}
+          </svg>`
+        : ""}
+      ${socState && dir
+        ? html`<svg
+            class="ring-spin ${dir} ${flowing ? "show" : ""}"
+            viewBox="0 0 100 100"
+          >
+            <circle cx="50" cy="50" r="44" stroke-dasharray="16 261"></circle>
           </svg>`
         : ""}
       ${socState && dir

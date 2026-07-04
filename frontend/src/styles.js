@@ -125,7 +125,8 @@ export const cardStyles = css`
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .batt-particles .particle {
+    .batt-particles .particle,
+    .ring-spin {
       animation: none !important;
     }
   }
@@ -157,26 +158,40 @@ export const cardStyles = css`
     stroke: var(--info-color, #2196f3);
   }
   /* a spark that travels around the ring while charging / discharging; fades
-     in/out (.show) and transitions colour rather than popping on state change */
+     in/out (.show) and transitions colour rather than popping on state change.
+     Its own overlay <svg> is what rotates: animating the HTML-level element
+     runs on the compositor, while rotating a circle inside the ring SVG would
+     repaint the whole SVG every frame on mobile. */
   .ring-spin {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.55s ease;
+    will-change: transform;
+  }
+  .ring-spin circle {
     fill: none;
     stroke-width: 5;
     stroke-linecap: round;
-    transform-origin: 50% 50%;
-    transform-box: fill-box;
-    opacity: 0;
-    transition: opacity 0.55s ease, stroke 0.55s ease;
+    transition: stroke 0.55s ease;
   }
   .ring-spin.show {
     opacity: 1;
   }
   .ring-spin.charge {
-    stroke: var(--state-sensor-battery-high-color, #43a047);
     animation: ring-spin 1.5s linear infinite;
   }
+  .ring-spin.charge circle {
+    stroke: var(--state-sensor-battery-high-color, #43a047);
+  }
   .ring-spin.discharge {
-    stroke: var(--info-color, #2196f3);
     animation: ring-spin 1.9s linear infinite reverse;
+  }
+  .ring-spin.discharge circle {
+    stroke: var(--info-color, #2196f3);
   }
   .ring-spin:not(.show) {
     animation-play-state: paused;
@@ -764,20 +779,17 @@ export const cardStyles = css`
   /* the live, in-progress hour: same solar colour as the other bars, set apart
    * by a gentle pulse + glow that reads as "still rising" */
   .fc-current {
-    transform-box: fill-box;
-    transform-origin: bottom;
     animation: fc-pulse 1.5s ease-in-out infinite;
     filter: drop-shadow(0 0 3px var(--energy-solar-color, #ff9800));
   }
+  /* opacity-only: a scaleY pulse would re-rasterize the drop-shadow every frame */
   @keyframes fc-pulse {
     0%,
     100% {
       opacity: 1;
-      transform: scaleY(1);
     }
     50% {
       opacity: 0.6;
-      transform: scaleY(1.04);
     }
   }
   @media (prefers-reduced-motion: reduce) {

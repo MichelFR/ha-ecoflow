@@ -24,6 +24,31 @@ export function panelData(card) {
   return panels;
 }
 
+/* Lifetime solar production readout, shown under the solar dialog's graph.
+ * Uses the entity's own HA formatting; tapping opens its more-info dialog. */
+export function renderSolarTotal(card) {
+  const id = card._entityId("sensor.solar_energy");
+  const st = id ? card.hass.states[id] : null;
+  if (!st) return "";
+  let value = "";
+  if (typeof card.hass.formatEntityState === "function") {
+    try {
+      value = card.hass.formatEntityState(st);
+    } catch (e) {
+      /* fall through to raw */
+    }
+  }
+  if (!value) {
+    const unit = st.attributes?.unit_of_measurement;
+    value = unit ? `${st.state} ${unit}` : st.state;
+  }
+  return html`<button class="dlg-total" @click=${() => card._moreInfoId(id)}>
+    <ha-icon icon="mdi:solar-power"></ha-icon>
+    <span class="dlg-total-label">${localize(card.hass, "panels.total_energy")}</span>
+    <span class="dlg-total-val">${value}</span>
+  </button>`;
+}
+
 export function renderPanels(card) {
   const t = (key, vars) => localize(card.hass, key, vars);
   const panels = panelData(card);

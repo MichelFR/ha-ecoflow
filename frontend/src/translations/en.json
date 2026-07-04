@@ -115,6 +115,7 @@
     "title": "Solar panels",
     "panel": "Panel {n}",
     "total": "Total",
+    "total_energy": "Total solar energy",
     "none": "No per-panel solar data is available for this device."
   },
   "editor": {

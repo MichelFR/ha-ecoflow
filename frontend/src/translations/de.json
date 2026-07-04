@@ -115,6 +115,7 @@
     "title": "Solarmodule",
     "panel": "Modul {n}",
     "total": "Gesamt",
+    "total_energy": "Solarenergie gesamt",
     "none": "Für dieses Gerät sind keine Daten je Solarmodul verfügbar."
   },
   "editor": {

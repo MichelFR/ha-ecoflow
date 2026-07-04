@@ -40,8 +40,13 @@ export const ACTIVE_W = 1;
  *                    charge also yields 0.
  *   gridToHome     : load_from_grid (the part of the home load met by the grid).
  *   deviceToHome   : load met by PV + battery.
+ *   exportToGrid   : the device's true feed-in to the utility — the PV surplus
+ *                    the battery doesn't absorb, plus any discharge beyond the
+ *                    home's draw. The device's own grid port reads negative
+ *                    whenever it feeds the HOME too, so gating the export line
+ *                    on the port sign showed a phantom device->grid flow (e.g.
+ *                    while PV charges the battery and covers the load).
  *
- * Device export is read straight off the grid sign in the themes (grid < 0).
  * When the load_from_* sensors aren't available we fall back to the old
  * single-meter split. Pass-through fields (solar/bat/soc/route) are kept for the
  * re_space theme, which ignores the derived ones. */
@@ -61,12 +66,17 @@ export function deriveFlowStates(s) {
       : Math.max(0, load - gridToHome);
 
   const batCharge = Math.max(0, bat); // bat: + charging, - discharging
+  const batDischarge = Math.max(0, -bat);
   const pvSurplus = Math.max(0, solar - Math.max(0, s.loadFromPv || 0));
   const chargeFromGrid = hasSplit
     ? Math.max(0, batCharge - pvSurplus)
     : Math.max(0, grid - gridToHome);
+  const exportToGrid = hasSplit
+    ? Math.max(0, pvSurplus - batCharge) +
+      Math.max(0, batDischarge - Math.max(0, s.loadFromBat || 0))
+    : Math.max(0, -grid);
 
-  return { ...s, gridToHome, deviceToHome, chargeFromGrid };
+  return { ...s, gridToHome, deviceToHome, chargeFromGrid, exportToGrid };
 }
 
 /* A layer: { key, zone, file(states), active(states), mode?, seek? }.
@@ -96,7 +106,7 @@ export const FLOW_THEMES = {
     layers: [
       { key: "solar", zone: "bg", file: (s) => `bk621/house_solar_lottie_${bkRoute(s.route)}`, active: (s) => s.solar > ACTIVE_W },
       { key: "grid_in", zone: "bg", file: () => "bk621/grid_to_device_lottie", active: (s) => s.chargeFromGrid > ACTIVE_W },
-      { key: "grid_out", zone: "bg", file: () => "bk621/device_to_grid_lottie", active: (s) => s.grid < -ACTIVE_W },
+      { key: "grid_out", zone: "bg", file: () => "bk621/device_to_grid_lottie", active: (s) => s.exportToGrid > ACTIVE_W },
       { key: "grid_home", zone: "bg", file: () => "bk621/grid_to_home_lottie", active: (s) => s.gridToHome > ACTIVE_W },
       { key: "home", zone: "bg", file: (s) => `bk621/house_device_home_lottie_${bkRoute(s.route)}`, active: (s) => s.deviceToHome > ACTIVE_W },
       { key: "bat_soc", zone: "on", file: () => "bk621/house_soc_lottie", mode: "seek", seek: (s) => s.soc, active: (s) => s.soc != null },
@@ -107,7 +117,7 @@ export const FLOW_THEMES = {
   bk620: {
     layers: [
       { key: "solar", zone: "bg", file: (s) => `bk620/house_solar_lottie_${bkRoute(s.route)}`, active: (s) => s.solar > ACTIVE_W },
-      { key: "grid_out", zone: "bg", file: () => "bk621/device_to_grid_lottie", active: (s) => s.grid < -ACTIVE_W },
+      { key: "grid_out", zone: "bg", file: () => "bk621/device_to_grid_lottie", active: (s) => s.exportToGrid > ACTIVE_W },
       { key: "grid_home", zone: "bg", file: () => "bk621/grid_to_home_lottie", active: (s) => s.gridToHome > ACTIVE_W },
       { key: "home", zone: "bg", file: () => "bk620/house_device_home_lottie", active: (s) => s.deviceToHome > ACTIVE_W },
     ],
@@ -146,8 +156,22 @@ export const FLOW_THEMES = {
 
 export class FlowController {
   constructor() {
-    // key -> { anim, file, ready, mode, seek } for each mounted flow Lottie.
+    // key -> { anim, file, ready, mode, seek, active, states, lastSeek } for
+    // each mounted flow Lottie.
     this._anims = {};
+    // Playback only runs while the stage is actually watchable: the page is
+    // visible, the stage intersects the viewport, and the user hasn't asked
+    // for reduced motion. Lottie runs on rAF, which only throttles when the
+    // whole tab hides — in the HA app the dashboard stays foreground, so an
+    // off-screen card would otherwise keep animating (and burning CPU) forever.
+    this._stageVisible = true;
+    this._pageVisible = typeof document === "undefined" || !document.hidden;
+    this._reducedMotion = false;
+    this._observer = null;
+    this._observed = null;
+    this._onPageVis = null;
+    this._motionMq = null;
+    this._onMotion = null;
   }
 
   /* Mount/play/pause every flow to match the current scene.
@@ -159,6 +183,7 @@ export class FlowController {
     for (const def of layers) {
       const container = renderRoot.querySelector(`[data-flow="${def.key}"]`);
       if (!container) continue;
+      this._watch(container.parentElement);
       used.add(def.key);
       const active = showFlows && def.active(states) && (def.zone !== "on" || batOverlays);
       this._setFlow(hass, container, def, active, states);
@@ -166,7 +191,11 @@ export class FlowController {
     // Hide any container whose key isn't in the active theme (pause its lottie).
     for (const container of renderRoot.querySelectorAll("[data-flow]")) {
       if (used.has(container.dataset.flow)) continue;
-      this._anims[container.dataset.flow]?.anim?.pause();
+      const rec = this._anims[container.dataset.flow];
+      if (rec) {
+        rec.active = false;
+        rec.anim?.pause();
+      }
       container.style.opacity = "0";
     }
   }
@@ -174,6 +203,58 @@ export class FlowController {
   destroy() {
     for (const rec of Object.values(this._anims)) rec.anim?.destroy();
     this._anims = {};
+    this._observer?.disconnect();
+    this._observer = null;
+    this._observed = null;
+    if (this._onPageVis) {
+      document.removeEventListener("visibilitychange", this._onPageVis);
+      this._onPageVis = null;
+    }
+    if (this._motionMq && this._onMotion) {
+      this._motionMq.removeEventListener?.("change", this._onMotion);
+    }
+    this._motionMq = null;
+    this._onMotion = null;
+    this._stageVisible = true;
+  }
+
+  /* Bind the visibility signals to the stage element (the flows' shared
+   * parent). Idempotent; re-binds if the stage node was re-created. */
+  _watch(stage) {
+    if (!this._onPageVis) {
+      this._pageVisible = !document.hidden;
+      this._onPageVis = () => {
+        this._pageVisible = !document.hidden;
+        this._applyAll();
+      };
+      document.addEventListener("visibilitychange", this._onPageVis);
+      this._motionMq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+      if (this._motionMq) {
+        this._reducedMotion = this._motionMq.matches;
+        this._onMotion = (e) => {
+          this._reducedMotion = e.matches;
+          this._applyAll();
+        };
+        this._motionMq.addEventListener?.("change", this._onMotion);
+      }
+    }
+    if (!stage || stage === this._observed) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    this._observer?.disconnect();
+    this._observer = new IntersectionObserver((entries) => {
+      this._stageVisible = entries[entries.length - 1].isIntersecting;
+      this._applyAll();
+    });
+    this._observer.observe(stage);
+    this._observed = stage;
+  }
+
+  _canRender() {
+    return this._stageVisible && this._pageVisible;
+  }
+
+  _applyAll() {
+    for (const rec of Object.values(this._anims)) this._applyFlow(rec);
   }
 
   _setFlow(hass, container, def, active, states) {
@@ -183,8 +264,10 @@ export class FlowController {
     let rec = this._anims[key];
 
     // Mount lazily on first activation; reload only if the chosen file changed
-    // (e.g. the solar route or a theme switch).
-    if (active && (!rec || rec.file !== file)) {
+    // (e.g. the solar route or a theme switch), or the container was re-created
+    // (lit rebuilds the stage when the space card returns from another tab,
+    // which would leave the lottie playing in a detached node).
+    if (active && (!rec || rec.file !== file || rec.anim?.wrapper !== container)) {
       rec?.anim?.destroy();
       const anim = lottie.loadAnimation({
         container,
@@ -196,28 +279,39 @@ export class FlowController {
         // bottom for the battery readout (see the stage's aspect ratio).
         rendererSettings: { preserveAspectRatio: "xMidYMin meet" },
       });
+      // Render at the lottie's own frame rate (~25-30fps) instead of every
+      // rAF tick — on a 120Hz phone subframe rendering would repaint the SVG
+      // 120x/s per flow, which is the main mobile heat source.
+      anim.setSubframe(false);
       rec = this._anims[key] = { anim, file, ready: false, mode, seek: def.seek };
       anim.addEventListener("DOMLoaded", () => {
         rec.ready = true;
-        this._applyFlow(rec, active, states);
+        this._applyFlow(rec);
       });
     }
 
     if (rec) {
       rec.seek = def.seek;
-      this._applyFlow(rec, active, states);
+      rec.active = active;
+      rec.states = states;
+      this._applyFlow(rec);
     }
     container.style.opacity = active ? "1" : "0";
   }
 
-  _applyFlow(rec, active, states) {
+  _applyFlow(rec) {
     if (!rec.ready) return;
     if (rec.mode === "seek") {
+      // Skip while hidden; _applyAll re-seeks when the stage comes back.
+      if (!this._canRender()) return;
       // 0..100% -> the fill animation's frames (the SoC lotties span 0..101).
-      rec.anim.goToAndStop(Math.max(0, Math.min(100, rec.seek?.(states) ?? 0)), true);
+      const frame = Math.max(0, Math.min(100, rec.seek?.(rec.states) ?? 0));
+      if (frame === rec.lastSeek) return; // unchanged: don't redraw the SVG
+      rec.lastSeek = frame;
+      rec.anim.goToAndStop(frame, true);
       return;
     }
-    if (active) rec.anim.play();
+    if (rec.active && this._canRender() && !this._reducedMotion) rec.anim.play();
     else rec.anim.pause();
   }
 }

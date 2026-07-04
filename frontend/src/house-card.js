@@ -17,10 +17,20 @@
 
 import { LitElement, html } from "lit";
 import { HOUSE_CARD_TYPE } from "./const.js";
-import { entityMap, streamDevices } from "./entities.js";
+import { entityMap, relevantStatesChanged, streamDevices } from "./entities.js";
+import {
+  fetchHourlyWh,
+  fetchSolarForecasts,
+  forecastHourly,
+  forecastTodayWh,
+  mergeForecastWhHours,
+} from "./energy.js";
 import { fmtPower, isEntityId, isTemplate, numState, splitPower } from "./format.js";
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
+import { renderForecastGraph } from "./views/forecast-graph.js";
+import { renderPanels, renderSolarTotal } from "./views/panels.js";
+import { dialogStyles } from "./dialog-styles.js";
 import {
   DEFAULT_HOUSE_STYLE,
   batteryBoxUrl,
@@ -32,15 +42,22 @@ import { ACTIVE_W, FlowController, deriveFlowStates } from "./flows.js";
 import { houseCardStyles } from "./house-styles.js";
 
 export class EcoFlowHouseCard extends LitElement {
-  static styles = houseCardStyles;
+  static styles = [houseCardStyles, dialogStyles];
 
   static get properties() {
-    return { hass: {}, _config: {} };
+    return { hass: {}, _config: {}, _dialog: { state: true } };
   }
 
   constructor() {
     super();
     this._flows = new FlowController();
+    // "Solar" dialog (the same hourly production + forecast graph and per-array
+    // list as the Energy / Space cards; opened by tapping the Solar figure).
+    this._dialog = null;
+    this._solarHourly = {};
+    this._solarTotalWh = undefined; // undefined = not fetched, null = unavailable
+    this._solarForecasts = {};
+    this._fcTip = null;
   }
 
   connectedCallback() {
@@ -105,7 +122,10 @@ export class EcoFlowHouseCard extends LitElement {
   }
 
   _moreInfo(slot) {
-    const entityId = this._entityId(slot);
+    this._moreInfoId(this._entityId(slot));
+  }
+
+  _moreInfoId(entityId) {
     if (!entityId) return;
     this.dispatchEvent(
       new CustomEvent("hass-more-info", {
@@ -114,6 +134,52 @@ export class EcoFlowHouseCard extends LitElement {
         composed: true,
       })
     );
+  }
+
+  /* -- "Solar" dialog (same graph + per-array list as the Space card) -- */
+
+  async _openSolar() {
+    this._dialog = "solar";
+    if (this._solarTotalWh === undefined) await this._refreshSolar();
+  }
+
+  async _refreshSolar() {
+    const id = this._entityId("sensor.solar_energy");
+    const ref = new Date();
+    const from = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+    const hours = id ? await fetchHourlyWh(this.hass, id, from) : null;
+    this._solarHourly = hours || {};
+    this._solarTotalWh = hours
+      ? Object.values(hours).reduce((s, w) => s + (w || 0), 0)
+      : null;
+    this._solarForecasts = await fetchSolarForecasts(this.hass);
+    this.requestUpdate();
+  }
+
+  _renderSolarDialog() {
+    const ref = new Date();
+    const merged = mergeForecastWhHours(this._solarForecasts || {});
+    const graph = renderForecastGraph(this, {
+      actual: this._solarHourly || {},
+      forecast: forecastHourly(merged, ref),
+      totalWh: this._solarTotalWh,
+      forecastWh: forecastTodayWh(merged, ref),
+      currentHour: ref.getHours(),
+      showForecast: Object.keys(merged).length > 0,
+      title: this._t("card.today"),
+    });
+    return html`<ha-adaptive-dialog
+      open
+      width="large"
+      header-title=${this._t("card.solar")}
+      @closed=${() => (this._dialog = null)}
+    >
+      <div class="dlg-body">
+        ${graph} ${renderSolarTotal(this)}
+        <div class="dlg-section">${this._t("panels.title")}</div>
+        ${renderPanels(this)}
+      </div>
+    </ha-adaptive-dialog>`;
   }
 
   /* -- live values -- */
@@ -150,6 +216,19 @@ export class EcoFlowHouseCard extends LitElement {
       loadFromBat: numState(this._state("sensor.load_from_bat")),
       route,
     });
+  }
+
+  /* Only re-render (and re-sync the flows) for hass changes that touch the
+   * scene's own sensors — hass is replaced on every state change anywhere in
+   * HA. Config changes and internal updates always pass. */
+  shouldUpdate(changed) {
+    if (!(changed.size === 1 && changed.has("hass"))) return true;
+    if (!this._map) return true; // before the first full render
+    const ids = Object.values(this._map);
+    for (const v of Object.values(this._config?.entities || {})) {
+      if (isEntityId(v) && !isTemplate(v)) ids.push(v);
+    }
+    return relevantStatesChanged(changed.get("hass"), this.hass, ids);
   }
 
   /* -- lottie lifecycle -- */
@@ -218,6 +297,7 @@ export class EcoFlowHouseCard extends LitElement {
         ${showBattery ? this._renderBattery() : ""}
         ${notSetup ? this._renderSetupWarning() : ""}
       </div>
+      ${this._dialog === "solar" ? this._renderSolarDialog() : ""}
     </ha-card>`;
   }
 
@@ -250,13 +330,14 @@ export class EcoFlowHouseCard extends LitElement {
     if (this._show("show_grid")) {
       // "From grid" is the home load actually drawn from the grid
       // (load_from_grid), not the Stream's own grid-port reading (grid_power),
-      // which only sees the device's charge/export. Export still reads grid_power
-      // (< 0); fall back to grid_power for import when the split sensor is absent
-      // (e.g. single-battery PowerOcean themes that have no load_from_grid).
+      // which only sees the device's charge/export. "To grid" reads the derived
+      // exportToGrid for the same reason — the port also goes negative while the
+      // device merely feeds the home. Both fall back to the grid_power sign when
+      // the split sensors are absent (e.g. single-battery PowerOcean themes).
       const fromGrid =
         blank || !Number.isFinite(s.loadFromGrid) ? null : Math.max(0, s.loadFromGrid);
       const importing = !blank && (fromGrid != null ? fromGrid > ACTIVE_W : s.grid > ACTIVE_W);
-      const exporting = !blank && !importing && s.grid < -ACTIVE_W;
+      const exporting = !blank && !importing && s.exportToGrid > ACTIVE_W;
       const importValue = fromGrid != null ? fromGrid : s.grid;
       cols.push({
         slot: importing && fromGrid != null ? "sensor.load_from_grid" : "sensor.grid_power",
@@ -266,9 +347,13 @@ export class EcoFlowHouseCard extends LitElement {
           ? null
           : importing
             ? importValue
-            : s.grid != null
-              ? Math.abs(s.grid)
-              : null,
+            : exporting
+              ? s.exportToGrid
+              : fromGrid != null
+                ? 0
+                : s.grid != null
+                  ? Math.abs(s.grid)
+                  : null,
         label: importing
           ? this._t("house.from_grid")
           : exporting
@@ -284,6 +369,7 @@ export class EcoFlowHouseCard extends LitElement {
         value: blank ? null : s.solar,
         label: this._t("card.solar"),
         cls: !blank && s.solar > ACTIVE_W ? "solar" : "",
+        onTap: () => this._openSolar(),
       });
     }
     if (this._show("show_home")) {
@@ -302,7 +388,8 @@ export class EcoFlowHouseCard extends LitElement {
         const split = splitPower(c.value);
         return html`<div
           class="stat ${c.anchor} ${c.cls} clickable"
-          @click=${() => this._moreInfo(this._entityId(c.slot) ? c.slot : c.fallback || c.slot)}
+          @click=${c.onTap ||
+          (() => this._moreInfo(this._entityId(c.slot) ? c.slot : c.fallback || c.slot))}
         >
           <div class="stat-value">
             <span class="num">${split.n}</span><span class="unit">${split.u}</span>

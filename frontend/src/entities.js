@@ -55,8 +55,19 @@ export function keyOf(ent) {
 }
 
 /* Group EcoFlow entities by device; a Stream / solar device is one exposing the
- * total solar-power sensor (pv_total). Returns [{deviceId, device, ents}]. */
+ * total solar-power sensor (pv_total). Returns [{deviceId, device, ents}].
+ *
+ * Cached on the entity/device registry objects: `hass` is replaced on every
+ * state change, but hass.entities / hass.devices keep their identity until the
+ * registry itself changes, so the full registry scan only re-runs then (the
+ * cards call this on every render). */
+const devicesCache = new WeakMap(); // hass.entities -> { devReg, devices }
 export function streamDevices(hass) {
+  const reg = hass.entities;
+  if (!reg) return [];
+  const cached = devicesCache.get(reg);
+  if (cached && cached.devReg === hass.devices) return cached.devices;
+
   const byDevice = new Map();
   for (const ent of ecoflowEntities(hass)) {
     if (!ent.device_id) continue;
@@ -69,13 +80,40 @@ export function streamDevices(hass) {
       devices.push({ deviceId, device: hass.devices?.[deviceId], ents });
     }
   }
+  devicesCache.set(reg, { devReg: hass.devices, devices });
   return devices;
+}
+
+/* Whether anything a card renders from could have changed between two hass
+ * objects: the registries, the locale, or one of the given entity states.
+ * Used by the cards' shouldUpdate so the constant firehose of unrelated state
+ * changes (every hass set) doesn't re-render them. */
+export function relevantStatesChanged(oldHass, hass, ids) {
+  if (!oldHass || !hass) return true;
+  if (
+    oldHass.entities !== hass.entities ||
+    oldHass.devices !== hass.devices ||
+    oldHass.locale !== hass.locale ||
+    oldHass.language !== hass.language
+  ) {
+    return true;
+  }
+  for (const id of ids) {
+    if (id && oldHass.states[id] !== hass.states[id]) return true;
+  }
+  return false;
 }
 
 /* Map "<domain>.<key>" slot -> entity_id for the given entities. Primary match
  * is the translation_key; the battery level falls back to its device_class so
- * registries predating the translation_keys still resolve it. */
+ * registries predating the translation_keys still resolve it.
+ *
+ * Cached per ents array (stable via the streamDevices cache) — the mapping only
+ * depends on registry data plus static attributes (device_class / unit). */
+const entityMapCache = new WeakMap(); // ents -> map
 export function entityMap(hass, ents) {
+  const cached = entityMapCache.get(ents);
+  if (cached) return cached;
   const map = {};
   for (const ent of ents) {
     const [domain] = ent.entity_id.split(".");
@@ -97,5 +135,6 @@ export function entityMap(hass, ents) {
       }
     }
   }
+  entityMapCache.set(ents, map);
   return map;
 }

@@ -15,7 +15,7 @@
 
 import { LitElement, html } from "lit";
 import { SPACE_CARD_TYPE } from "./const.js";
-import { entityMap, streamDevices } from "./entities.js";
+import { entityMap, relevantStatesChanged, streamDevices } from "./entities.js";
 import { isEntityId, isTemplate, numState, splitKWh, splitPower } from "./format.js";
 import {
   fetchEnergyTotals,
@@ -26,7 +26,7 @@ import {
   mergeForecastWhHours,
 } from "./energy.js";
 import { renderForecastGraph } from "./views/forecast-graph.js";
-import { renderPanels } from "./views/panels.js";
+import { renderPanels, renderSolarTotal } from "./views/panels.js";
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
 import {
@@ -413,7 +413,7 @@ export class EcoFlowSpaceCard extends LitElement {
       @closed=${() => (this._dialog = null)}
     >
       <div class="dlg-body">
-        ${graph}
+        ${graph} ${renderSolarTotal(this)}
         <div class="dlg-section">${this._t("panels.title")}</div>
         ${renderPanels(this)}
       </div>
@@ -496,13 +496,36 @@ export class EcoFlowSpaceCard extends LitElement {
     return { n: raw == null || raw === "" ? "–" : String(raw), u: "" };
   }
 
+  /* Direction label for the grid overlay, mirroring the house card: "From
+   * grid" while the grid feeds the home or charges the battery, "To grid" only
+   * on true utility export (exportToGrid — the raw port sign also goes negative
+   * while the device merely feeds the home), else plain "Grid". */
+  _gridDirLabel() {
+    const s = this._flowStates();
+    const importing =
+      s.loadFromGrid > ACTIVE_W ||
+      s.chargeFromGrid > ACTIVE_W ||
+      (!Number.isFinite(s.loadFromGrid) && s.grid > ACTIVE_W);
+    if (importing) return this._t("house.from_grid");
+    if (s.exportToGrid > ACTIVE_W) return this._t("house.to_grid");
+    return this._t("house.grid");
+  }
+
   /* Build an overlay's display: preset defaults (label/icon/format/colour/slot)
    * merged with any explicit overrides. Value source priority: template >
    * explicit entity > explicit slot > preset slot (auto-discovered). */
   _overlayView(ov) {
     const p = ov.preset ? OVERLAY_PRESETS[ov.preset] : null;
     const view = {
-      label: ov.label ?? (p ? this._t(p.labelKey) : ""),
+      label:
+        ov.label ??
+        (ov.preset === "grid" &&
+        !isTemplate(ov.template) &&
+        !(ov.entity && isEntityId(ov.entity))
+          ? this._gridDirLabel()
+          : p
+            ? this._t(p.labelKey)
+            : ""),
       icon: ov.icon ?? p?.icon,
       num: "",
       unit: "",
@@ -632,6 +655,33 @@ export class EcoFlowSpaceCard extends LitElement {
   }
 
   /* -- lifecycle -- */
+
+  /* Only re-render for hass changes that touch what the home scene shows —
+   * hass is replaced on every state change anywhere in HA. Custom tabs embed
+   * foreign Lovelace cards that must receive every hass, so they never gate;
+   * config changes and internal updates (clock, templates, energy) always
+   * pass. */
+  shouldUpdate(changed) {
+    if (!(changed.size === 1 && changed.has("hass"))) return true;
+    if (!this._config) return true;
+    if (this._activeTab().id !== "home") return true;
+    if (!this._map) return true; // before the first full render
+    const ids = Object.values(this._map);
+    const add = (v) => {
+      if (v && isEntityId(v) && !isTemplate(v)) ids.push(v);
+    };
+    for (const ov of this._config.overlays || []) {
+      add(ov.entity);
+      add(ov.secondary);
+    }
+    for (const tile of this._config.tiles || []) {
+      add(tile.entity);
+      add(tile.secondary);
+    }
+    add(this._config.weather?.entity);
+    add(this._config.weather?.low);
+    return relevantStatesChanged(changed.get("hass"), this.hass, ids);
+  }
 
   updated(changed) {
     super.updated(changed);
