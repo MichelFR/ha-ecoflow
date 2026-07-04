@@ -31,8 +31,9 @@ import {
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
 import { cardStyles } from "./styles.js";
-import { panelData, renderPanels } from "./views/panels.js";
+import { panelData } from "./views/panels.js";
 import { renderForecastGraph } from "./views/forecast-graph.js";
+import { openSolarDialog, renderSolarDialog } from "./views/solar-dialog.js";
 
 const STATS_REFRESH_MS = 5 * 60 * 1000;
 
@@ -50,8 +51,12 @@ export class EcoFlowEnergyCard extends LitElement {
 
   constructor() {
     super();
-    this._dialog = null; // null | "panels" | "today" | "battery"
+    this._dialog = null; // null | "solar" | "today" | "battery"
     this._confirmAc = null; // {slot,label} awaiting turn-off confirmation
+    // Shared "Solar" dialog data (see views/solar-dialog.js).
+    this._solarHourly = {};
+    this._solarTotalWh = undefined;
+    this._solarForecasts = {};
     this._battDir = ""; // last battery flow ("charge"/"discharge"); kept so the
     // particle/spark layer can fade out in place instead of snapping when idle
     this._todayWh = undefined; // undefined = not fetched, null = unavailable
@@ -345,9 +350,7 @@ export class EcoFlowEnergyCard extends LitElement {
       ${this._renderHead(device)}
       ${this._renderStats()}
       ${this._show("show_today") ? this._renderToday() : ""}
-      ${this._dialog === "panels"
-        ? this._dialogFrame(this._t("panels.title"), renderPanels(this))
-        : ""}
+      ${this._dialog === "solar" ? renderSolarDialog(this) : ""}
       ${this._dialog === "today"
         ? this._dialogFrame(this._periodLabel(), this._forecastGraph(), "large")
         : ""}
@@ -769,7 +772,7 @@ export class EcoFlowEnergyCard extends LitElement {
     return html`<div class="stats">
       <div
         class="stat solar ${canBreakdown ? "clickable" : ""}"
-        @click=${canBreakdown ? () => (this._dialog = "panels") : null}
+        @click=${canBreakdown ? () => openSolarDialog(this) : null}
       >
         <div class="stat-head">
           <ha-icon icon="mdi:solar-power-variant"></ha-icon>${this._t(

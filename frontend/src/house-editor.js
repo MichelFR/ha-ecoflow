@@ -22,6 +22,7 @@ import {
   houseAssetFiles,
   housePreviewUrl,
 } from "./houses.js";
+import { panelsSummary, renderPanelsEditorPage } from "./views/panels-editor.js";
 import { buildZip } from "./zip.js";
 
 const DEVICE_SCHEMA = [
@@ -32,6 +33,7 @@ const PAGES = [
   { id: "appearance", icon: "mdi:palette-outline" },
   { id: "display", icon: "mdi:eye-outline" },
   { id: "battery", icon: "mdi:home-battery-outline" },
+  { id: "panels", icon: "mdi:solar-panel" },
   { id: "entities", icon: "mdi:tune-variant" },
 ];
 
@@ -152,6 +154,9 @@ export class EcoFlowHouseCardEditor extends LitElement {
       const name = this._t(`house.battery.${this._config.battery || DEFAULT_BATTERY}`);
       return on ? name : this._t("editor.nothing_shown");
     }
+    if (pageId === "panels") {
+      return panelsSummary(this);
+    }
     if (pageId === "entities") {
       const n = SLOTS.filter(([slot]) => this._config.entities?.[slot]).length;
       return n ? this._t("editor.overridden", { n }) : this._t("editor.automatic");
@@ -174,7 +179,9 @@ export class EcoFlowHouseCardEditor extends LitElement {
           ? TOGGLES.map(([key, def, icon]) => this._renderToggle(key, def, icon))
           : page.id === "battery"
             ? this._renderBatteryPage()
-            : this._renderEntitiesPage()}`;
+            : page.id === "panels"
+              ? renderPanelsEditorPage(this, HOUSE_CARD_TYPE)
+              : this._renderEntitiesPage()}`;
   }
 
   /* -- appearance: house style gallery, day/night, custom uploads -- */
@@ -639,6 +646,30 @@ export class EcoFlowHouseCardEditor extends LitElement {
       }
       .top-hint {
         margin: 0 4px 10px;
+      }
+      /* per-panel blocks (shared views/panels-editor.js) */
+      .panel-block {
+        padding: 6px 4px 12px;
+        border-bottom: 1px solid var(--divider-color);
+      }
+      .panel-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+      }
+      .panel-title-row ha-icon {
+        --mdc-icon-size: 20px;
+        color: var(--energy-solar-color, #ff9800);
+      }
+      .panel-title {
+        flex: 1;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+      .panel-block ha-form {
+        display: block;
+        margin-bottom: 12px;
       }
       .upload-slot {
         margin-bottom: 12px;

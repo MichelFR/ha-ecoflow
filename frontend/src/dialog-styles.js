@@ -164,33 +164,6 @@ export const dialogStyles = css`
     font-weight: 700;
   }
 
-  /* total solar energy readout (taps through to the entity's more-info) */
-  .dlg-total {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    margin-top: 14px;
-    padding: 12px 10px;
-    border: none;
-    border-radius: 12px;
-    background: var(--secondary-background-color);
-    color: var(--primary-text-color);
-    font: inherit;
-    cursor: pointer;
-  }
-  .dlg-total ha-icon {
-    --mdc-icon-size: 20px;
-    color: var(--energy-solar-color, #ff9800);
-  }
-  .dlg-total-label {
-    flex: 1;
-    text-align: left;
-  }
-  .dlg-total-val {
-    font-weight: 700;
-  }
-
   /* per-array solar production (shared views/panels.js) */
   .dlg-section {
     margin: 18px 4px 6px;
@@ -258,5 +231,12 @@ export const dialogStyles = css`
     border-top: 1px solid var(--divider-color);
     font-weight: 700;
     color: var(--primary-text-color);
+  }
+  .panel-total.clickable {
+    cursor: pointer;
+  }
+  .panel-max {
+    color: var(--secondary-text-color);
+    font-weight: 400;
   }
 `;

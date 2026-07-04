@@ -18,18 +18,10 @@
 import { LitElement, html } from "lit";
 import { HOUSE_CARD_TYPE } from "./const.js";
 import { entityMap, relevantStatesChanged, streamDevices } from "./entities.js";
-import {
-  fetchHourlyWh,
-  fetchSolarForecasts,
-  forecastHourly,
-  forecastTodayWh,
-  mergeForecastWhHours,
-} from "./energy.js";
 import { fmtPower, isEntityId, isTemplate, numState, splitPower } from "./format.js";
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
-import { renderForecastGraph } from "./views/forecast-graph.js";
-import { renderPanels, renderSolarTotal } from "./views/panels.js";
+import { openSolarDialog, renderSolarDialog } from "./views/solar-dialog.js";
 import { dialogStyles } from "./dialog-styles.js";
 import {
   DEFAULT_HOUSE_STYLE,
@@ -136,50 +128,10 @@ export class EcoFlowHouseCard extends LitElement {
     );
   }
 
-  /* -- "Solar" dialog (same graph + per-array list as the Space card) -- */
+  /* -- "Solar" dialog (shared with the Energy / Space cards) -- */
 
-  async _openSolar() {
-    this._dialog = "solar";
-    if (this._solarTotalWh === undefined) await this._refreshSolar();
-  }
-
-  async _refreshSolar() {
-    const id = this._entityId("sensor.solar_energy");
-    const ref = new Date();
-    const from = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
-    const hours = id ? await fetchHourlyWh(this.hass, id, from) : null;
-    this._solarHourly = hours || {};
-    this._solarTotalWh = hours
-      ? Object.values(hours).reduce((s, w) => s + (w || 0), 0)
-      : null;
-    this._solarForecasts = await fetchSolarForecasts(this.hass);
-    this.requestUpdate();
-  }
-
-  _renderSolarDialog() {
-    const ref = new Date();
-    const merged = mergeForecastWhHours(this._solarForecasts || {});
-    const graph = renderForecastGraph(this, {
-      actual: this._solarHourly || {},
-      forecast: forecastHourly(merged, ref),
-      totalWh: this._solarTotalWh,
-      forecastWh: forecastTodayWh(merged, ref),
-      currentHour: ref.getHours(),
-      showForecast: Object.keys(merged).length > 0,
-      title: this._t("card.today"),
-    });
-    return html`<ha-adaptive-dialog
-      open
-      width="large"
-      header-title=${this._t("card.solar")}
-      @closed=${() => (this._dialog = null)}
-    >
-      <div class="dlg-body">
-        ${graph} ${renderSolarTotal(this)}
-        <div class="dlg-section">${this._t("panels.title")}</div>
-        ${renderPanels(this)}
-      </div>
-    </ha-adaptive-dialog>`;
+  _openSolar() {
+    openSolarDialog(this);
   }
 
   /* -- live values -- */
@@ -297,7 +249,7 @@ export class EcoFlowHouseCard extends LitElement {
         ${showBattery ? this._renderBattery() : ""}
         ${notSetup ? this._renderSetupWarning() : ""}
       </div>
-      ${this._dialog === "solar" ? this._renderSolarDialog() : ""}
+      ${this._dialog === "solar" ? renderSolarDialog(this) : ""}
     </ha-card>`;
   }
 

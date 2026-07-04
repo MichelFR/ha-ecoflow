@@ -34,7 +34,8 @@
       "appearance": "Appearance",
       "display": "What to show",
       "battery": "Battery",
-      "entities": "Entities"
+      "entities": "Entities",
+      "panels": "Solar panels"
     },
     "short": {
       "show_flows": "Flows",
@@ -115,7 +116,6 @@
     "title": "Solar panels",
     "panel": "Panel {n}",
     "total": "Total",
-    "total_energy": "Total solar energy",
     "none": "No per-panel solar data is available for this device."
   },
   "editor": {
@@ -134,9 +134,11 @@
     "nothing_shown": "Nothing shown",
     "panel": "Panel {n}",
     "panel_name": "Panel name",
+    "panel_max": "Max output",
     "panel_entity": "Power sensor",
     "panel_hidden": "Hidden from the card.",
     "panels_hint": "Rename a panel, point it at a different sensor, or hide it from the breakdown. Use the toggle to show or hide each panel.",
+    "panels_hint_max": "Rename a panel, set its maximum output (scales its bar in the solar dialog), or hide it from the breakdown.",
     "panels_count": "{n} panels",
     "panels_hidden": "{n} hidden",
     "loading": "Loading…",
@@ -220,7 +222,8 @@
       "weather": "Weather",
       "overlays": "Floating overlays",
       "tiles": "Bottom tiles",
-      "tabs": "Sidebar tabs"
+      "tabs": "Sidebar tabs",
+      "panels": "Solar panels"
     },
     "n_items": "{n} configured",
     "weather_hint": "Pick a weather entity to show the temperature and humidity in the top bar. Leave empty to hide it.",

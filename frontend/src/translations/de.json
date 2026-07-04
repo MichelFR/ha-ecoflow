@@ -34,7 +34,8 @@
       "appearance": "Darstellung",
       "display": "Anzeige",
       "battery": "Batterie",
-      "entities": "Entitäten"
+      "entities": "Entitäten",
+      "panels": "Solarmodule"
     },
     "short": {
       "show_flows": "Flüsse",
@@ -115,7 +116,6 @@
     "title": "Solarmodule",
     "panel": "Modul {n}",
     "total": "Gesamt",
-    "total_energy": "Solarenergie gesamt",
     "none": "Für dieses Gerät sind keine Daten je Solarmodul verfügbar."
   },
   "editor": {
@@ -134,9 +134,11 @@
     "nothing_shown": "Nichts angezeigt",
     "panel": "Modul {n}",
     "panel_name": "Modulname",
+    "panel_max": "Maximale Leistung",
     "panel_entity": "Leistungssensor",
     "panel_hidden": "Auf der Karte ausgeblendet.",
     "panels_hint": "Benennen Sie ein Modul um, weisen Sie ihm einen anderen Sensor zu oder blenden Sie es aus der Aufschlüsselung aus. Mit dem Schalter zeigen oder verbergen Sie jedes Modul.",
+    "panels_hint_max": "Modul umbenennen, die maximale Leistung setzen (skaliert den Balken im Solar-Dialog) oder aus der Aufschlüsselung ausblenden.",
     "panels_count": "{n} Module",
     "panels_hidden": "{n} ausgeblendet",
     "loading": "Lädt…",
@@ -220,7 +222,8 @@
       "weather": "Wetter",
       "overlays": "Schwebende Overlays",
       "tiles": "Kacheln unten",
-      "tabs": "Seitenleisten-Tabs"
+      "tabs": "Seitenleisten-Tabs",
+      "panels": "Solarmodule"
     },
     "n_items": "{n} konfiguriert",
     "weather_hint": "Wähle eine Wetter-Entität, um Temperatur und Luftfeuchte in der Kopfzeile zu zeigen. Leer lassen zum Ausblenden.",

@@ -13,6 +13,7 @@ import { fetchForecastConfigEntries } from "./energy.js";
 import { isEntityId, isTemplate } from "./format.js";
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
+import { renderPanelMaxField } from "./views/panels-editor.js";
 
 const DEVICE_SCHEMA = [
   { name: "device", selector: { device: { integration: PLATFORM } } },
@@ -541,6 +542,9 @@ export class EcoFlowEnergyCardEditor extends LitElement {
                 );
               }}
             ></ha-form>
+            ${renderPanelMaxField(this, pc, (max) =>
+              this._dispatch(this._withPanel(i, { max }))
+            )}
             ${this._renderSlot(slot, "mdi:flash", this._t("editor.panel_entity"))}`}
     </div>`;
   }

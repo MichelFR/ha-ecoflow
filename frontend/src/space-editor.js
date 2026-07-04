@@ -11,6 +11,7 @@ import { OVERLAY_PRESETS, TILE_PRESETS } from "./space-card.js";
 import { isEntityId, isTemplate } from "./format.js";
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
+import { panelsSummary, renderPanelsEditorPage } from "./views/panels-editor.js";
 import {
   BATTERY_BOXES,
   DEFAULT_BATTERY,
@@ -32,6 +33,7 @@ const PAGES = [
   { id: "weather", icon: "mdi:weather-partly-cloudy" },
   { id: "overlays", icon: "mdi:label-multiple-outline" },
   { id: "tiles", icon: "mdi:card-text-outline" },
+  { id: "panels", icon: "mdi:solar-panel" },
   { id: "tabs", icon: "mdi:dock-left" },
 ];
 
@@ -154,6 +156,9 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     if (pageId === "tiles") {
       return this._t("space.n_items", { n: (this._config.tiles || []).length });
     }
+    if (pageId === "panels") {
+      return panelsSummary(this);
+    }
     if (pageId === "tabs") {
       return this._t("space.n_items", { n: this._tabs().length });
     }
@@ -175,7 +180,9 @@ export class EcoFlowSpaceCardEditor extends LitElement {
             ? this._renderOverlays()
             : page.id === "tiles"
               ? this._renderTiles()
-              : this._renderTabs()}`;
+              : page.id === "panels"
+                ? renderPanelsEditorPage(this, SPACE_CARD_TYPE)
+                : this._renderTabs()}`;
   }
 
   /* -- appearance (house render reused from the House card) -- */
@@ -978,6 +985,30 @@ export class EcoFlowSpaceCardEditor extends LitElement {
       }
       .top-hint {
         margin: 0 4px 12px;
+      }
+      /* per-panel blocks (shared views/panels-editor.js) */
+      .panel-block {
+        padding: 6px 4px 12px;
+        border-bottom: 1px solid var(--divider-color);
+      }
+      .panel-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+      }
+      .panel-title-row ha-icon {
+        --mdc-icon-size: 20px;
+        color: var(--energy-solar-color, #ff9800);
+      }
+      .panel-title {
+        flex: 1;
+        font-weight: 600;
+        color: var(--primary-text-color);
+      }
+      .panel-block ha-form {
+        display: block;
+        margin-bottom: 12px;
       }
 
       /* drag preview */

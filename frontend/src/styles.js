@@ -468,6 +468,11 @@ export const cardStyles = css`
   .dlg-body {
     padding: 4px 4px 8px;
   }
+  .dlg-section {
+    margin: 18px 4px 6px;
+    font-weight: 700;
+    color: var(--primary-text-color);
+  }
 
   /* battery detail dialog */
   .batt-detail {
@@ -663,6 +668,13 @@ export const cardStyles = css`
     border-top: 1px solid var(--divider-color);
     font-weight: 700;
     color: var(--primary-text-color);
+  }
+  .panel-total.clickable {
+    cursor: pointer;
+  }
+  .panel-max {
+    color: var(--secondary-text-color);
+    font-weight: 400;
   }
 
   /* forecast / production graph */
