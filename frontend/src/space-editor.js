@@ -1,13 +1,18 @@
 /* Visual editor for the EcoFlow Space Card, styled after the House card's
  * editor (a root device picker + a list of setting groups, each opening a
  * subpage). Pages cover appearance (house render reused from the House card),
- * the weather entity, the floating overlays (positioned by dragging on a live
- * preview), the bottom tiles, and the sidebar tabs (each embedding a Lovelace
- * view by path). */
+ * the weather entity, the top-bar clock, the floating overlays (positioned by
+ * dragging on a live preview), the bottom tiles, and the sidebar tabs (each
+ * embedding a Lovelace view by path). */
 
 import { LitElement, html, css } from "lit";
 import { SPACE_CARD_TYPE, PLATFORM } from "./const.js";
-import { OVERLAY_PRESETS, TILE_PRESETS } from "./space-card.js";
+import {
+  OVERLAY_PRESETS,
+  TILE_PRESETS,
+  WEATHER_HUMIDITY_COLOR,
+  WEATHER_TEMP_COLOR,
+} from "./space-card.js";
 import { isEntityId, isTemplate } from "./format.js";
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
@@ -31,6 +36,7 @@ const DEVICE_SCHEMA = [
 const PAGES = [
   { id: "appearance", icon: "mdi:palette-outline" },
   { id: "weather", icon: "mdi:weather-partly-cloudy" },
+  { id: "clock", icon: "mdi:clock-outline" },
   { id: "overlays", icon: "mdi:label-multiple-outline" },
   { id: "tiles", icon: "mdi:card-text-outline" },
   { id: "panels", icon: "mdi:solar-panel" },
@@ -57,6 +63,7 @@ const ANCHOR_OPTIONS = [
 ];
 
 const TOGGLES = [
+  ["oled", false, "mdi:brightness-2"],
   ["show_flows", true, "mdi:transit-connection-variant"],
   ["show_battery", true, "mdi:home-battery"],
 ];
@@ -150,6 +157,9 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     if (pageId === "weather") {
       return this._config.weather?.entity || this._t("editor.automatic");
     }
+    if (pageId === "clock") {
+      return this._t(this._config.clock ? "space.on" : "space.off");
+    }
     if (pageId === "overlays") {
       return this._t("space.n_items", { n: (this._config.overlays || []).length });
     }
@@ -160,7 +170,9 @@ export class EcoFlowSpaceCardEditor extends LitElement {
       return panelsSummary(this);
     }
     if (pageId === "tabs") {
-      return this._t("space.n_items", { n: this._tabs().length });
+      if (!(this._config.show_rail ?? true)) return this._t("space.off");
+      const n = this._tabs().length - 1; // the implicit Home tab isn't "configured"
+      return n ? this._t("space.n_views", { n }) : this._t("space.home_tab");
     }
     return "";
   }
@@ -176,13 +188,15 @@ export class EcoFlowSpaceCardEditor extends LitElement {
         ? this._renderAppearance()
         : page.id === "weather"
           ? this._renderWeather()
-          : page.id === "overlays"
-            ? this._renderOverlays()
-            : page.id === "tiles"
-              ? this._renderTiles()
-              : page.id === "panels"
-                ? renderPanelsEditorPage(this, SPACE_CARD_TYPE)
-                : this._renderTabs()}`;
+          : page.id === "clock"
+            ? this._renderClock()
+            : page.id === "overlays"
+              ? this._renderOverlays()
+              : page.id === "tiles"
+                ? this._renderTiles()
+                : page.id === "panels"
+                  ? renderPanelsEditorPage(this, SPACE_CARD_TYPE)
+                  : this._renderTabs()}`;
   }
 
   /* -- appearance (house render reused from the House card) -- */
@@ -272,13 +286,27 @@ export class EcoFlowSpaceCardEditor extends LitElement {
       ${this._textField(this._t("space.f_low"), this._config.weather?.low || "", (v) =>
         this._setWeather("low", v)
       )}
+      ${this._colorField(
+        this._t("space.f_temp_color"),
+        this._config.weather?.temp_color,
+        (v) => this._setWeather("temp_color", v),
+        WEATHER_TEMP_COLOR
+      )}
+      ${this._colorField(
+        this._t("space.f_humidity_color"),
+        this._config.weather?.humidity_color,
+        (v) => this._setWeather("humidity_color", v),
+        WEATHER_HUMIDITY_COLOR
+      )}
       ${this._scaleField(this._t("space.f_weather_size"), this._config.weather_size, (v) =>
         this._set("weather_size", v, 1)
-      )}
+      )}`;
+  }
 
-      <div class="section">
-        <ha-icon icon="mdi:clock-outline"></ha-icon>${this._t("space.clock_title")}
-      </div>
+  /* -- clock & date -- */
+
+  _renderClock() {
+    return html`<div class="hint top-hint">${this._t("space.clock_hint")}</div>
       <div class="row">
         <ha-icon icon="mdi:clock-outline"></ha-icon>
         <span class="row-label">${this._t("space.clock_show")}</span>
@@ -311,6 +339,16 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     this._dispatch(config);
   }
 
+  /* Display title for an overlay/tile: explicit label, else the preset or
+   * bound source — never the internal id. */
+  _itemTitle(item, fallbackKey) {
+    if (item.label) return item.label;
+    if (item.preset) return this._t(`space.preset.${item.preset}`);
+    if (isEntityId(item.entity)) return item.entity;
+    if (item.slot) return this._t(`slot.${item.slot}`);
+    return this._t(fallbackKey);
+  }
+
   /* -- overlays (drag-to-position preview + list) -- */
 
   _renderOverlays() {
@@ -331,7 +369,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
             @click=${() => (this._sel = ov.id)}
           >
             ${ov.icon ? html`<ha-icon icon=${ov.icon}></ha-icon>` : ""}
-            <span>${ov.label || ov.id}</span>
+            <span>${this._itemTitle(ov, "space.item_overlay")}</span>
           </button>`
         )}
       </div>
@@ -349,7 +387,8 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     return html`<div class="item ${open ? "open" : ""}">
       <div class="item-head" @click=${() => (this._sel = open ? null : ov.id)}>
         ${ov.icon ? html`<ha-icon icon=${ov.icon}></ha-icon>` : html`<ha-icon icon="mdi:label-outline"></ha-icon>`}
-        <span class="item-title">${ov.label || ov.id}</span>
+        <span class="item-title">${this._itemTitle(ov, "space.item_overlay")}</span>
+        ${this._renderReorder("overlays", i)}
         <ha-icon class="chev" icon=${open ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
       </div>
       ${open
@@ -388,9 +427,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
             ${this._scaleField(this._t("space.f_size"), ov.size, (v) =>
               this._updateItem("overlays", i, { size: v === 1 ? undefined : v })
             )}
-            <button class="del-btn" @click=${() => this._removeItem("overlays", i)}>
-              <ha-icon icon="mdi:delete-outline"></ha-icon><span>${this._t("space.remove")}</span>
-            </button>
+            ${this._renderItemActions("overlays", i)}
           </div>`
         : ""}
     </div>`;
@@ -478,7 +515,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
   _addOverlay() {
     const overlays = [...(this._config.overlays || [])];
     const id = newId("ov");
-    overlays.push({ id, label: "Overlay", x: 50, y: 50, anchor: "center", slot: SLOT_OPTIONS[0] });
+    overlays.push({ id, x: 50, y: 50, anchor: "center", slot: SLOT_OPTIONS[0] });
     this._setList("overlays", overlays);
     this._sel = id;
   }
@@ -503,15 +540,9 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     return html`<div class="item ${open ? "open" : ""}">
       <div class="item-head" @click=${() => (this._sel = open ? null : tile.id)}>
         ${tile.icon ? html`<ha-icon icon=${tile.icon}></ha-icon>` : html`<ha-icon icon="mdi:card-outline"></ha-icon>`}
-        <span class="item-title">${tile.label || tile.id}</span>
-        <span class="reorder">
-          <button @click=${(e) => { e.stopPropagation(); this._moveItem("tiles", i, -1); }}>
-            <ha-icon icon="mdi:chevron-up"></ha-icon>
-          </button>
-          <button @click=${(e) => { e.stopPropagation(); this._moveItem("tiles", i, 1); }}>
-            <ha-icon icon="mdi:chevron-down"></ha-icon>
-          </button>
-        </span>
+        <span class="item-title">${this._itemTitle(tile, "space.item_tile")}</span>
+        ${this._renderReorder("tiles", i)}
+        <ha-icon class="chev" icon=${open ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
       </div>
       ${open
         ? html`<div class="item-body">
@@ -532,9 +563,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
             ${this._textField(this._t("space.f_secondary"), tile.secondary || "", (v) =>
               this._updateItem("tiles", i, { secondary: v || undefined })
             )}
-            <button class="del-btn" @click=${() => this._removeItem("tiles", i)}>
-              <ha-icon icon="mdi:delete-outline"></ha-icon><span>${this._t("space.remove")}</span>
-            </button>
+            ${this._renderItemActions("tiles", i)}
           </div>`
         : ""}
     </div>`;
@@ -543,7 +572,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
   _addTile() {
     const tiles = [...(this._config.tiles || [])];
     const id = newId("tile");
-    tiles.push({ id, label: "Tile", slot: SLOT_OPTIONS[0] });
+    tiles.push({ id, slot: SLOT_OPTIONS[0] });
     this._setList("tiles", tiles);
     this._sel = id;
   }
@@ -558,7 +587,23 @@ export class EcoFlowSpaceCardEditor extends LitElement {
 
   _renderTabs() {
     const tabs = this._tabs();
+    const shown = this._config.show_rail ?? true;
     return html`<div class="row">
+        <ha-icon icon="mdi:dock-left"></ha-icon>
+        <span class="row-label">${this._t("space.rail_show")}</span>
+        <ha-switch
+          .checked=${shown}
+          @change=${(ev) => this._set("show_rail", ev.target.checked, true)}
+        ></ha-switch>
+      </div>
+      ${shown ? this._renderRailSettings(tabs) : ""}`;
+  }
+
+  _renderRailSettings(tabs) {
+    return html`<div class="section">
+        <ha-icon icon="mdi:tune-variant"></ha-icon>${this._t("space.rail_style")}
+      </div>
+      <div class="row">
         <ha-icon icon="mdi:label-outline"></ha-icon>
         <span class="row-label">${this._t("space.rail_labels")}</span>
         <ha-switch
@@ -576,7 +621,10 @@ export class EcoFlowSpaceCardEditor extends LitElement {
       ${this._scaleField(this._t("space.f_rail_size"), this._config.rail_size, (v) =>
         this._set("rail_size", v, 1)
       )}
-      <div class="hint top-hint" style="margin-top:14px">${this._t("space.tabs_hint")}</div>
+      <div class="section">
+        <ha-icon icon="mdi:tab"></ha-icon>${this._t("space.rail_tabs")}
+      </div>
+      <div class="hint top-hint">${this._t("space.tabs_hint")}</div>
       ${tabs.map((tab, i) =>
         i === 0 ? this._renderHomeTab(tab) : this._renderTabEditor(tab, i)
       )}
@@ -632,6 +680,45 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     this._sel = `tab${tabs.length - 1}`;
   }
 
+  /* -- shared list-item chrome (reorder arrows, duplicate/remove actions) -- */
+
+  _renderReorder(key, i) {
+    return html`<span class="reorder">
+      <button @click=${(e) => { e.stopPropagation(); this._moveItem(key, i, -1); }}>
+        <ha-icon icon="mdi:arrow-up"></ha-icon>
+      </button>
+      <button @click=${(e) => { e.stopPropagation(); this._moveItem(key, i, 1); }}>
+        <ha-icon icon="mdi:arrow-down"></ha-icon>
+      </button>
+    </span>`;
+  }
+
+  _renderItemActions(key, i) {
+    return html`<div class="item-actions">
+      <button class="dup-btn" @click=${() => this._duplicateItem(key, i)}>
+        <ha-icon icon="mdi:content-copy"></ha-icon><span>${this._t("space.duplicate")}</span>
+      </button>
+      <button class="del-btn" @click=${() => this._removeItem(key, i)}>
+        <ha-icon icon="mdi:delete-outline"></ha-icon><span>${this._t("space.remove")}</span>
+      </button>
+    </div>`;
+  }
+
+  /* Insert a copy right after the original (overlays get a small offset so the
+   * copy doesn't sit exactly on top) and open it. */
+  _duplicateItem(key, i) {
+    const arr = [...(this._config[key] || [])];
+    if (!arr[i]) return;
+    const copy = { ...arr[i], id: newId(key === "overlays" ? "ov" : "tile") };
+    if (key === "overlays") {
+      copy.x = Math.min(100, (copy.x ?? 50) + 4);
+      copy.y = Math.min(100, (copy.y ?? 50) + 4);
+    }
+    arr.splice(i + 1, 0, copy);
+    this._setList(key, arr);
+    this._sel = copy.id;
+  }
+
   /* -- small field helpers -- */
 
   /* Text field via ha-form — a bare <ha-textfield> isn't reliably registered for
@@ -669,13 +756,14 @@ export class EcoFlowSpaceCardEditor extends LitElement {
 
   /* Colour field using HA's native RGB colour picker; stored as a CSS
    * "rgb(r, g, b)" string. The picker has no clear control, so a reset button
-   * is shown once a colour is set (removes it / restores the default). */
-  _colorField(label, value, onChange) {
+   * is shown once a colour is set (removes it / restores the default). An
+   * optional default colour is shown in the picker while no value is stored. */
+  _colorField(label, value, onChange, def) {
     return html`<div class="color-field">
       <ha-form
         class="field"
         .hass=${this.hass}
-        .data=${{ value: parseColor(value) }}
+        .data=${{ value: parseColor(value) ?? parseColor(def) }}
         .schema=${[{ name: "value", selector: { color_rgb: {} } }]}
         .computeLabel=${() => label}
         @value-changed=${(ev) => {
@@ -1157,7 +1245,12 @@ export class EcoFlowSpaceCardEditor extends LitElement {
         border-radius: 10px;
         padding: 3px;
       }
+      .item-actions {
+        display: flex;
+        gap: 16px;
+      }
       .add-btn,
+      .dup-btn,
       .del-btn {
         display: inline-flex;
         align-items: center;
@@ -1172,11 +1265,15 @@ export class EcoFlowSpaceCardEditor extends LitElement {
         color: var(--primary-color);
         margin-top: 4px;
       }
+      .dup-btn {
+        color: var(--primary-color);
+      }
       .del-btn {
         color: var(--error-color, #db4437);
         align-self: flex-start;
       }
       .add-btn ha-icon,
+      .dup-btn ha-icon,
       .del-btn ha-icon {
         --mdc-icon-size: 18px;
       }

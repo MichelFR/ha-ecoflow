@@ -109,14 +109,28 @@ export function energyStatIds(prefs) {
  * EcoFlow energy sensors are in Wh (the Energy card divides solar_energy by
  * 1000); the Energy dashboard mixes Wh / kWh / MWh sources, so we must convert
  * per statistic or the totals are off by 1000×. */
-async function fetchStatUnits(hass) {
+const statUnitsCache = new WeakMap(); // connection -> { key, map }
+
+async function fetchStatUnits(hass, statIds) {
+  // Ask only for the dashboard's statistics (unfiltered, this returns every
+  // statistic in the instance — thousands of rows on large installs) and cache
+  // per connection: stored units don't change, and this runs every 5 minutes.
+  const conn = hass.connection;
+  const key = [...statIds].sort().join("|");
+  const cached = conn && statUnitsCache.get(conn);
+  if (cached && cached.key === key) return cached.map;
   try {
-    const list = (await hass.callWS({ type: "recorder/list_statistic_ids" })) || [];
+    const list =
+      (await hass.callWS({
+        type: "recorder/list_statistic_ids",
+        statistic_ids: statIds,
+      })) || [];
     const map = {};
     for (const s of list) {
       map[s.statistic_id] =
         s.statistics_unit_of_measurement || s.unit_of_measurement || s.display_unit_of_measurement || "";
     }
+    if (conn) statUnitsCache.set(conn, { key, map });
     return map;
   } catch (e) {
     return {};
@@ -168,7 +182,13 @@ export async function fetchEnergyTotals(hass) {
   const prefs = await fetchEnergyPrefs(hass);
   if (!prefs) return null;
   const ids = energyStatIds(prefs);
-  const units = await fetchStatUnits(hass);
+  const units = await fetchStatUnits(hass, [
+    ...ids.solar,
+    ...ids.gridFrom,
+    ...ids.gridTo,
+    ...ids.batIn,
+    ...ids.batOut,
+  ]);
   const [solar, gridImport, gridExport, batIn, batOut] = await Promise.all([
     todayKWh(hass, ids.solar, units),
     todayKWh(hass, ids.gridFrom, units),

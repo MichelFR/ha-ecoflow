@@ -4,6 +4,21 @@ export const cardStyles = css`
   ha-card {
     padding: 20px;
   }
+  /* OLED mode: pure black card with the theme palette remapped for contrast.
+     The vars sit on :host so every surface in the shadow tree (pills, dialog,
+     graph) inherits them. */
+  :host([oled]) {
+    --card-background-color: #000;
+    --ha-card-background: #000;
+    --primary-text-color: #f2f4f6;
+    --secondary-text-color: #9aa3ad;
+    --secondary-background-color: #15181c;
+    --divider-color: rgba(255, 255, 255, 0.12);
+  }
+  :host([oled]) ha-card {
+    background: #000;
+    border-color: rgba(255, 255, 255, 0.12);
+  }
   .empty {
     padding: 8px;
     color: var(--secondary-text-color);

@@ -39,6 +39,7 @@ const PAGES = [
 
 // Display toggles (on the "display" page): [config key, default, icon].
 const TOGGLES = [
+  ["oled", false, "mdi:brightness-2"],
   ["show_flows", true, "mdi:transit-connection-variant"],
   ["show_grid", true, "mdi:transmission-tower"],
   ["show_solar", true, "mdi:solar-power-variant"],

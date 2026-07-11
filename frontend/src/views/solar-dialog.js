@@ -19,10 +19,23 @@ import { localize } from "../localize.js";
 import { renderForecastGraph } from "./forecast-graph.js";
 import { renderPanels } from "./panels.js";
 
-/* Open the dialog, fetching today's data on first use. */
+/* Open the dialog, refreshing its data on every open — cached data can be
+ * hours (or on a wall tablet, days) old. The stale graph still shows while
+ * the two WS calls are in flight. */
 export async function openSolarDialog(card) {
   card._dialog = "solar";
-  if (card._solarTotalWh === undefined) await refreshSolarDialog(card);
+  // Keep an open dialog current (statistics tick a few times an hour). The
+  // timer self-clears if the dialog closed or the card left the DOM.
+  clearInterval(card._solarTimer);
+  card._solarTimer = setInterval(() => {
+    if (card._dialog !== "solar" || !card.isConnected) {
+      clearInterval(card._solarTimer);
+      card._solarTimer = null;
+      return;
+    }
+    refreshSolarDialog(card);
+  }, 5 * 60 * 1000);
+  await refreshSolarDialog(card);
 }
 
 export async function refreshSolarDialog(card) {
@@ -38,15 +51,35 @@ export async function refreshSolarDialog(card) {
   card.requestUpdate();
 }
 
+/* Merge + day-bucket the forecasts, memoized on the forecast object identity
+ * and the day — the dialog re-renders with every relevant state push, and
+ * re-merging every provider's wh_hours map each time is pure GC churn. */
+function forecastForDay(card, ref) {
+  const src = card._solarForecasts || {};
+  const day = `${ref.getFullYear()}-${ref.getMonth()}-${ref.getDate()}`;
+  const m = card._solarFcMemo;
+  if (m && m.src === src && m.day === day) return m;
+  const merged = mergeForecastWhHours(src);
+  card._solarFcMemo = {
+    src,
+    day,
+    merged,
+    hourly: forecastHourly(merged, ref),
+    dayWh: forecastTodayWh(merged, ref),
+  };
+  return card._solarFcMemo;
+}
+
 export function renderSolarDialog(card) {
   const t = (key, vars) => localize(card.hass, key, vars);
   const ref = new Date();
-  const merged = mergeForecastWhHours(card._solarForecasts || {});
+  const fc = forecastForDay(card, ref);
+  const merged = fc.merged;
   const graph = renderForecastGraph(card, {
     actual: card._solarHourly || {},
-    forecast: forecastHourly(merged, ref),
+    forecast: fc.hourly,
     totalWh: card._solarTotalWh,
-    forecastWh: forecastTodayWh(merged, ref),
+    forecastWh: fc.dayWh,
     currentHour: ref.getHours(),
     showForecast: Object.keys(merged).length > 0,
     title: t("card.today"),
@@ -55,7 +88,11 @@ export function renderSolarDialog(card) {
     open
     width="large"
     header-title=${t("card.solar")}
-    @closed=${() => (card._dialog = null)}
+    @closed=${() => {
+      card._dialog = null;
+      clearInterval(card._solarTimer);
+      card._solarTimer = null;
+    }}
   >
     <div class="dlg-body">
       ${graph}

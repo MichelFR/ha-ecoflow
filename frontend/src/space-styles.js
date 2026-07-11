@@ -61,6 +61,17 @@ export const spaceCardStyles = css`
       ),
       #0e1013;
   }
+  /* OLED mode: replace the app-style gradient backdrop with pure black (the
+     text palette is already light). Embedded tabs go black too, with near-black
+     card surfaces for contrast. */
+  :host([oled]) ha-card {
+    background: #000;
+  }
+  :host([oled]) .embed {
+    --primary-background-color: #000;
+    --card-background-color: #101215;
+    --ha-card-background: #101215;
+  }
   /* In the card-editor preview, use a fixed, sensible height instead of the
      full viewport so the preview pane isn't overrun. */
   :host([in-preview]) ha-card {

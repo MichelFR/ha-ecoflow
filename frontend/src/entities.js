@@ -94,7 +94,9 @@ export function relevantStatesChanged(oldHass, hass, ids) {
     oldHass.entities !== hass.entities ||
     oldHass.devices !== hass.devices ||
     oldHass.locale !== hass.locale ||
-    oldHass.language !== hass.language
+    oldHass.language !== hass.language ||
+    // Theme switches (incl. dark mode) restyle the scene / house render.
+    oldHass.themes !== hass.themes
   ) {
     return true;
   }

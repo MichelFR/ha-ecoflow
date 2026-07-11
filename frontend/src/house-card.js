@@ -55,6 +55,10 @@ export class EcoFlowHouseCard extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     ensureHaComponents();
+    // Re-attaching a cached view: disconnect destroyed the lottie flows, and
+    // shouldUpdate blocks unrelated hass sets — force a pass so updated() can
+    // remount them instead of showing a static house until a sensor changes.
+    this.requestUpdate();
   }
 
   disconnectedCallback() {
@@ -64,6 +68,8 @@ export class EcoFlowHouseCard extends LitElement {
 
   setConfig(config) {
     this._config = config || {};
+    // Reflected as an attribute so OLED mode stays pure CSS (see house-styles.js).
+    this.toggleAttribute("oled", !!this._config.oled);
   }
 
   static getConfigElement() {
@@ -141,7 +147,10 @@ export class EcoFlowHouseCard extends LitElement {
    * applied; sys_grid_power is the raw, oppositely-signed value). */
   _grid() {
     const grid = this._state("sensor.grid_power");
-    return numState(grid != null ? grid : this._state("sensor.sys_grid_power"));
+    if (grid != null) return numState(grid);
+    // The raw sensor is export-positive, so flip it to import-positive.
+    const raw = numState(this._state("sensor.sys_grid_power"));
+    return raw == null ? raw : -raw;
   }
 
   _flowStates() {
@@ -180,6 +189,9 @@ export class EcoFlowHouseCard extends LitElement {
     for (const v of Object.values(this._config?.entities || {})) {
       if (isEntityId(v) && !isTemplate(v)) ids.push(v);
     }
+    // The auto day/night house render follows the sun.
+    const mode = this._config?.house_mode;
+    if (mode !== "day" && mode !== "night") ids.push("sun.sun");
     return relevantStatesChanged(changed.get("hass"), this.hass, ids);
   }
 

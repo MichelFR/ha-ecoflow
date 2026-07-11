@@ -91,6 +91,8 @@ export class EcoFlowEnergyCard extends LitElement {
 
   setConfig(config) {
     this._config = config || {};
+    // Reflected as an attribute so OLED mode stays pure CSS (see styles.js).
+    this.toggleAttribute("oled", !!this._config.oled);
   }
 
   static getConfigElement() {
@@ -157,7 +159,10 @@ export class EcoFlowEnergyCard extends LitElement {
    * template results via requestUpdate) always passes. */
   shouldUpdate(changed) {
     if (!(changed.size === 1 && changed.has("hass"))) return true;
-    if (!this._map) return true; // before the first full render
+    // No device found yet: only registry changes can make one appear, so gate
+    // on registry identity (with no entity ids) instead of passing the whole
+    // firehose through the "no device" render.
+    if (!this._map) return relevantStatesChanged(changed.get("hass"), this.hass, []);
     const ids = Object.values(this._map);
     for (const v of Object.values(this._config?.entities || {})) {
       if (isEntityId(v) && !isTemplate(v)) ids.push(v);
@@ -186,8 +191,13 @@ export class EcoFlowEnergyCard extends LitElement {
   async _refreshData() {
     const id = this._entityId("sensor.solar_energy");
     if (!id || !this.hass) return;
+    // Generation token: overlapping fetches (interval, energy-collection
+    // notifications, period flips) must not let a slow older range overwrite a
+    // newer one — last *started* wins, not last resolved.
+    const gen = (this._dataGen = (this._dataGen || 0) + 1);
     const { start, end } = this._dataRange();
     const hours = await fetchHourlyWh(this.hass, id, start, end);
+    if (gen !== this._dataGen) return;
     this._hourly = hours || {};
     this._todayWh = hours
       ? Object.values(hours).reduce((sum, wh) => sum + (wh || 0), 0)
@@ -242,21 +252,48 @@ export class EcoFlowEnergyCard extends LitElement {
     apply();
   }
 
-  _mergedForecast() {
-    return mergeForecastWhHours(
-      this._forecasts,
-      this._config.forecast_config_entries
-    );
+  /* Merged + day-bucketed forecast, memoized on the forecast object identity
+   * and the reference day. Without this every render (several per second with
+   * the Stream's push cadence) re-merges every provider's full wh_hours map
+   * and allocates a Date per timestamp — pure GC churn for data that only
+   * changes every few minutes. */
+  _forecastForRef(ref) {
+    const src = this._forecasts;
+    const entries = this._config.forecast_config_entries;
+    const day = `${ref.getFullYear()}-${ref.getMonth()}-${ref.getDate()}`;
+    const m = this._fcMemo;
+    if (m && m.src === src && m.entries === entries && m.day === day) return m;
+    const merged = mergeForecastWhHours(src, entries);
+    this._fcMemo = {
+      src,
+      entries,
+      day,
+      merged,
+      hourly: forecastHourly(merged, ref),
+      dayWh: forecastTodayWh(merged, ref),
+    };
+    return this._fcMemo;
   }
 
   _forecastTodayKWh() {
-    const wh = forecastTodayWh(this._mergedForecast(), this._dataRange().ref);
+    // A single day's forecast can't be compared to a multi-day total.
+    if (this._rangeDays() > 1) return null;
+    const wh = this._forecastForRef(this._dataRange().ref).dayWh;
     return wh != null ? wh / 1000 : null;
   }
 
-  /* Whether the active range (an Energy date selection, if bound) refers to
+  /* Calendar days the active range spans (1 without a bound collection). */
+  _rangeDays() {
+    const { start, end } = this._dataRange();
+    const s = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const e = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    return Math.round((e - s) / 86400000) + 1;
+  }
+
+  /* Whether the active range (an Energy date selection, if bound) is exactly
    * today. Without a bound collection the range is always today. */
   _isToday() {
+    if (this._rangeDays() > 1) return false;
     const ref = this._dataRange().ref;
     const now = new Date();
     return (
@@ -266,13 +303,18 @@ export class EcoFlowEnergyCard extends LitElement {
     );
   }
 
-  /* "Solar today", or the selected date when an energy period is active. */
+  /* "Solar today", the selected date, or "start – end" for a multi-day
+   * energy-period selection. */
   _periodLabel() {
     if (this._isToday()) return this._t("card.today");
-    return this._dataRange().ref.toLocaleDateString(
-      this.hass?.locale?.language || undefined,
-      { weekday: "short", day: "numeric", month: "short" }
-    );
+    const lang = this.hass?.locale?.language || undefined;
+    const opts = { weekday: "short", day: "numeric", month: "short" };
+    const { start, end } = this._dataRange();
+    if (this._rangeDays() > 1) {
+      const short = { day: "numeric", month: "short" };
+      return `${start.toLocaleDateString(lang, short)} – ${end.toLocaleDateString(lang, short)}`;
+    }
+    return this._dataRange().ref.toLocaleDateString(lang, opts);
   }
 
   /* -- live template rendering for overrides -- */
@@ -289,13 +331,22 @@ export class EcoFlowEnergyCard extends LitElement {
       if (this._tmplUnsub[template]) continue;
       this._tmplUnsub[template] = true;
       try {
-        this._tmplUnsub[template] = await this.hass.connection.subscribeMessage(
+        const unsub = await this.hass.connection.subscribeMessage(
           (msg) => {
             this._templateResults[template] = msg.result;
             this.requestUpdate();
           },
           { type: "render_template", template }
         );
+        // Disconnected (or cleaned up) while the subscribe was in flight:
+        // disconnectedCallback can't release what hadn't resolved yet, so
+        // release it here instead of leaking the server-side subscription.
+        if (!this.isConnected || this._tmplUnsub[template] !== true) {
+          unsub();
+          delete this._tmplUnsub[template];
+        } else {
+          this._tmplUnsub[template] = unsub;
+        }
       } catch (e) {
         this._templateResults[template] = "error";
         this.requestUpdate();
@@ -691,7 +742,7 @@ export class EcoFlowEnergyCard extends LitElement {
             ? html`<ha-switch
                 .checked=${on}
                 @click=${(ev) => ev.stopPropagation()}
-                @change=${() => this._toggleSwitch(s.sw, s.label)}
+                @change=${(ev) => this._toggleSwitch(s.sw, s.label, ev.target)}
               ></ha-switch>`
             : ""}
         </div>`;
@@ -699,10 +750,14 @@ export class EcoFlowEnergyCard extends LitElement {
     </div>`;
   }
 
-  _toggleSwitch(slot, label) {
+  _toggleSwitch(slot, label, target) {
     const id = this._entityId(slot);
     const st = id ? this.hass.states[id] : null;
     if (!id || !st) return;
+    // Snap the switch back to the entity's real state: it flipped itself on
+    // tap, and Lit's dirty-check won't rewrite .checked when the bound value
+    // didn't change (e.g. the confirmation below gets cancelled).
+    if (target) target.checked = st.state === "on";
     if (st.state === "on") {
       // Two-step: confirm before cutting power to a socket.
       this._confirmAc = { slot, label };
@@ -931,16 +986,21 @@ export class EcoFlowEnergyCard extends LitElement {
    * active range. Shown in the "today" dialog and inline for a past day. */
   _forecastGraph() {
     const ref = this._dataRange().ref;
-    const merged = this._mergedForecast();
+    const fc = this._forecastForRef(ref);
+    const multiDay = this._rangeDays() > 1;
     return renderForecastGraph(this, {
       title: this._periodLabel(),
-      actual: this._hourly || {},
-      forecast: forecastHourly(merged, ref),
+      // Multi-day selections alias all days into 24 hour-buckets — the total
+      // is still the range's real sum, but the hourly bars would be a fake
+      // "day", so don't draw them.
+      actual: multiDay ? {} : this._hourly || {},
+      forecast: multiDay ? {} : fc.hourly,
       totalWh: this._todayWh,
-      forecastWh: forecastTodayWh(merged, ref),
+      forecastWh: multiDay ? null : fc.dayWh,
       // Only "today" has an in-progress hour to animate (blue bar).
       currentHour: this._isToday() ? new Date().getHours() : null,
       showForecast:
+        !multiDay &&
         this._show("show_forecast") &&
         Object.keys(this._forecasts || {}).length > 0,
     });

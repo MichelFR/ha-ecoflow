@@ -38,6 +38,7 @@
       "panels": "Solar panels"
     },
     "short": {
+      "oled": "OLED",
       "show_flows": "Flows",
       "show_grid": "Grid",
       "show_solar": "Solar",
@@ -50,6 +51,7 @@
       "night": "Night"
     },
     "toggle": {
+      "oled": "OLED mode (pure black background)",
       "show_flows": "Animate energy flows",
       "show_grid": "Show grid power",
       "show_solar": "Show solar power",
@@ -174,6 +176,7 @@
     "advanced": "Advanced"
   },
   "toggle": {
+    "oled": "OLED mode (pure black background)",
     "show_image": "Show device image",
     "show_today": "Show today's production",
     "show_grid": "Show grid power",
@@ -182,6 +185,7 @@
     "show_forecast": "Compare today's production with the forecast"
   },
   "short": {
+    "oled": "OLED",
     "show_image": "Image",
     "show_today": "Today",
     "show_grid": "Grid",
@@ -203,8 +207,7 @@
       "pv3_power": "Solar panel 3",
       "pv4_power": "Solar panel 4",
       "schuko1_power": "AC socket 1 power",
-      "schuko2_power": "AC socket 2 power",
-      "forecast_today": "Forecast entity (expected production today)"
+      "schuko2_power": "AC socket 2 power"
     },
     "number": {
       "max_charge_soc": "Charge limit",
@@ -220,9 +223,10 @@
     "page": {
       "appearance": "Appearance",
       "weather": "Weather",
+      "clock": "Clock & date",
       "overlays": "Floating overlays",
       "tiles": "Bottom tiles",
-      "tabs": "Sidebar tabs",
+      "tabs": "Sidebar",
       "panels": "Solar panels"
     },
     "n_items": "{n} configured",
@@ -233,9 +237,13 @@
     "tiles_hint": "The cards along the bottom. Each shows a value from a sensor, entity, or template.",
     "add_tile": "Add tile",
     "tabs_hint": "The sidebar buttons. The first is always Home (the scene above); each other tab embeds an existing Lovelace view by its path.",
+    "rail_show": "Show sidebar",
+    "rail_style": "Style",
+    "rail_tabs": "Tabs",
     "rail_labels": "Show labels under icons",
     "rail_align": "Align items",
     "f_rail_size": "Sidebar size (×)",
+    "n_views": "Home + {n} views",
     "align": {
       "start": "Top",
       "center": "Center",
@@ -252,21 +260,21 @@
     "f_icon_color": "Icon color (optional)",
     "f_dot": "Status dot color (optional)",
     "f_low": "Night low (text, entity or template)",
+    "f_temp_color": "Temperature icon color",
+    "f_humidity_color": "Humidity icon color",
     "f_slot": "Sensor",
     "f_secondary": "Secondary line (text, entity or template)",
     "f_path": "View path",
-    "f_co2_value": "CO₂ saved (text, entity or template)",
-    "f_co2_trees": "Trees equivalent (optional)",
-    "co2_title": "CO₂ chip",
-    "co2_hint": "An optional chip in the centre of the top bar, as in the app.",
     "f_preset": "Preset",
     "f_size": "Size (×)",
     "f_weather_size": "Weather size (×)",
     "f_clock_size": "Clock size (×)",
     "f_tiles_size": "Tile size (×)",
-    "clock_title": "Clock",
+    "clock_hint": "An optional clock in the center of the top bar, with an optional date line below it.",
     "clock_show": "Show clock (top center)",
     "clock_date": "Show date",
+    "on": "On",
+    "off": "Off",
     "preset_none": "None (custom)",
     "preset_hint": "Auto-bound and styled. Set Preset to “None (custom)” to choose your own entity or template.",
     "today": "Today",
@@ -291,6 +299,9 @@
       "bottom-right": "Bottom right"
     },
     "remove": "Remove",
+    "duplicate": "Duplicate",
+    "item_overlay": "Overlay",
+    "item_tile": "Tile",
     "embed_missing": "Lovelace view not found — check the path in the editor.",
     "embed_empty": "No view path set for this tab.",
     "clear_color": "Clear colour"

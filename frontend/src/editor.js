@@ -23,6 +23,7 @@ const DEVICE_SCHEMA = [
 // (toggle.<key> / short.<key>); only deviations from the default are stored.
 const TOGGLES = {
   appearance: [
+    ["oled", false, "mdi:brightness-2"],
     ["show_image", true, "mdi:image-outline"],
     ["show_today", true, "mdi:white-balance-sunny"],
     ["show_grid", true, "mdi:transmission-tower"],

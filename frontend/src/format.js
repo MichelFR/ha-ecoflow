@@ -17,15 +17,15 @@ export function numState(state) {
 /* Power in W -> compact "W" / "kW" string. */
 export function fmtPower(watts) {
   if (watts == null || !Number.isFinite(watts)) return null;
-  const abs = Math.abs(watts);
-  if (abs >= 1000) return `${(watts / 1000).toFixed(2)} kW`;
+  // Threshold on the rounded value so 999.5 W shows as 1.00 kW, not 1000 W.
+  if (Math.abs(Math.round(watts)) >= 1000) return `${(watts / 1000).toFixed(2)} kW`;
   return `${Math.round(watts)} W`;
 }
 
 /* Power in W -> { n, u } so the number and unit can be sized separately. */
 export function splitPower(watts) {
   if (watts == null || !Number.isFinite(watts)) return { n: "–", u: "W" };
-  if (Math.abs(watts) >= 1000) return { n: (watts / 1000).toFixed(2), u: "kW" };
+  if (Math.abs(Math.round(watts)) >= 1000) return { n: (watts / 1000).toFixed(2), u: "kW" };
   return { n: String(Math.round(watts)), u: "W" };
 }
 

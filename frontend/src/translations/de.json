@@ -38,6 +38,7 @@
       "panels": "Solarmodule"
     },
     "short": {
+      "oled": "OLED",
       "show_flows": "Flüsse",
       "show_grid": "Netz",
       "show_solar": "Solar",
@@ -50,6 +51,7 @@
       "night": "Nacht"
     },
     "toggle": {
+      "oled": "OLED-Modus (tiefschwarzer Hintergrund)",
       "show_flows": "Energieflüsse animieren",
       "show_grid": "Netzleistung anzeigen",
       "show_solar": "Solarleistung anzeigen",
@@ -174,6 +176,7 @@
     "advanced": "Erweitert"
   },
   "toggle": {
+    "oled": "OLED-Modus (tiefschwarzer Hintergrund)",
     "show_image": "Gerätebild anzeigen",
     "show_today": "Heutige Erzeugung anzeigen",
     "show_grid": "Netzleistung anzeigen",
@@ -182,6 +185,7 @@
     "show_forecast": "Heutige Erzeugung mit der Prognose vergleichen"
   },
   "short": {
+    "oled": "OLED",
     "show_image": "Bild",
     "show_today": "Heute",
     "show_grid": "Netz",
@@ -203,8 +207,7 @@
       "pv3_power": "Solarmodul 3",
       "pv4_power": "Solarmodul 4",
       "schuko1_power": "AC-Steckdose 1 Leistung",
-      "schuko2_power": "AC-Steckdose 2 Leistung",
-      "forecast_today": "Prognose-Entität (erwartete Erzeugung heute)"
+      "schuko2_power": "AC-Steckdose 2 Leistung"
     },
     "number": {
       "max_charge_soc": "Ladelimit",
@@ -220,9 +223,10 @@
     "page": {
       "appearance": "Darstellung",
       "weather": "Wetter",
+      "clock": "Uhr & Datum",
       "overlays": "Schwebende Overlays",
       "tiles": "Kacheln unten",
-      "tabs": "Seitenleisten-Tabs",
+      "tabs": "Seitenleiste",
       "panels": "Solarmodule"
     },
     "n_items": "{n} konfiguriert",
@@ -233,9 +237,13 @@
     "tiles_hint": "Die Kacheln am unteren Rand. Jede zeigt einen Wert aus Sensor, Entität oder Template.",
     "add_tile": "Kachel hinzufügen",
     "tabs_hint": "Die Seitenleisten-Buttons. Der erste ist immer Home (die Szene oben); jeder weitere Tab bettet eine vorhandene Lovelace-Ansicht per Pfad ein.",
+    "rail_show": "Seitenleiste anzeigen",
+    "rail_style": "Stil",
+    "rail_tabs": "Tabs",
     "rail_labels": "Beschriftungen unter Symbolen anzeigen",
     "rail_align": "Ausrichtung",
     "f_rail_size": "Seitenleisten-Größe (×)",
+    "n_views": "Home + {n} Ansichten",
     "align": {
       "start": "Oben",
       "center": "Mitte",
@@ -252,21 +260,21 @@
     "f_icon_color": "Symbolfarbe (optional)",
     "f_dot": "Statuspunkt-Farbe (optional)",
     "f_low": "Nacht-Tiefstwert (Text, Entität oder Template)",
+    "f_temp_color": "Symbolfarbe Temperatur",
+    "f_humidity_color": "Symbolfarbe Luftfeuchte",
     "f_slot": "Sensor",
     "f_secondary": "Zweite Zeile (Text, Entität oder Template)",
     "f_path": "Ansichtspfad",
-    "f_co2_value": "CO₂ eingespart (Text, Entität oder Template)",
-    "f_co2_trees": "Baum-Äquivalent (optional)",
-    "co2_title": "CO₂-Chip",
-    "co2_hint": "Ein optionaler Chip in der Mitte der Kopfzeile, wie in der App.",
     "f_preset": "Vorlage",
     "f_size": "Größe (×)",
     "f_weather_size": "Wetter-Größe (×)",
     "f_clock_size": "Uhr-Größe (×)",
     "f_tiles_size": "Kachel-Größe (×)",
-    "clock_title": "Uhr",
+    "clock_hint": "Eine optionale Uhr in der Mitte der oberen Leiste, mit optionaler Datumszeile darunter.",
     "clock_show": "Uhr anzeigen (oben mittig)",
     "clock_date": "Datum anzeigen",
+    "on": "Ein",
+    "off": "Aus",
     "preset_none": "Keine (benutzerdefiniert)",
     "preset_hint": "Automatisch verknüpft und gestylt. Setze die Vorlage auf „Keine“, um eine eigene Entität oder ein Template zu wählen.",
     "today": "Heute",
@@ -291,6 +299,9 @@
       "bottom-right": "Unten rechts"
     },
     "remove": "Entfernen",
+    "duplicate": "Duplizieren",
+    "item_overlay": "Overlay",
+    "item_tile": "Kachel",
     "embed_missing": "Lovelace-Ansicht nicht gefunden — Pfad im Editor prüfen.",
     "embed_empty": "Für diesen Tab ist kein Ansichtspfad gesetzt.",
     "clear_color": "Farbe entfernen"

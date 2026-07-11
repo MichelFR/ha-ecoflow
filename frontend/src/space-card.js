@@ -61,6 +61,11 @@ const C_EXPORT = "var(--energy-grid-return-color, #8353d1)";
 const C_BAT_IN = "var(--energy-battery-in-color, #3ddc84)";
 const C_BAT_OUT = "var(--energy-battery-out-color, #f06292)";
 
+// Default weather-chip icon colours (overridable via weather.temp_color /
+// weather.humidity_color). Shared with the editor's colour pickers.
+export const WEATHER_TEMP_COLOR = "#f44336";
+export const WEATHER_HUMIDITY_COLOR = "#2196f3";
+
 /* Pre-defined overlays: auto-bind to the discovered EcoFlow power sensors,
  * format W -> kW, and colour the value dynamically (solar amber, grid
  * import/export, battery charge/discharge). An explicit entity/template still
@@ -160,14 +165,30 @@ export class EcoFlowSpaceCard extends LitElement {
     // (statistics only tick a few times an hour, so polling is cheap).
     this._refreshEnergy();
     this._energyTimer = setInterval(() => this._refreshEnergy(), 5 * 60 * 1000);
-    this._clock = this._formatClock();
-    this._clockTimer = setInterval(() => {
-      const s = this._formatClock();
-      if (s !== this._clock) {
-        this._clock = s;
-        this.requestUpdate();
-      }
-    }, 1000);
+    this._syncClockTimer();
+    // Re-attaching a cached view: disconnect destroyed the lottie flows, and
+    // shouldUpdate blocks unrelated hass sets — force a pass so updated() can
+    // remount them instead of showing a static house until a sensor changes.
+    this.requestUpdate();
+  }
+
+  /* Run the 1 s clock tick only while the clock is actually shown — the card
+   * defaults to no clock, so most instances never pay for the interval. */
+  _syncClockTimer() {
+    const want = this.isConnected && (this._config?.clock ?? false);
+    if (want && !this._clockTimer) {
+      this._clock = this._formatClock();
+      this._clockTimer = setInterval(() => {
+        const s = this._formatClock();
+        if (s !== this._clock) {
+          this._clock = s;
+          this.requestUpdate();
+        }
+      }, 1000);
+    } else if (!want && this._clockTimer) {
+      clearInterval(this._clockTimer);
+      this._clockTimer = null;
+    }
   }
 
   disconnectedCallback() {
@@ -213,13 +234,20 @@ export class EcoFlowSpaceCard extends LitElement {
     this.toggleAttribute("no-header", noHeader);
   }
 
+  /* Cache the Intl formatter — toLocaleTimeString builds a fresh
+   * Intl.DateTimeFormat per call, the expensive part of a 1 s tick. */
   _formatClock() {
     const d = new Date();
+    const lang = this.hass?.locale?.language || undefined;
     try {
-      return d.toLocaleTimeString(this.hass?.locale?.language || undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      if (!this._clockFmt || this._clockFmtLang !== lang) {
+        this._clockFmt = new Intl.DateTimeFormat(lang, {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        this._clockFmtLang = lang;
+      }
+      return this._clockFmt.format(d);
     } catch (e) {
       return d.toTimeString().slice(0, 5);
     }
@@ -241,6 +269,7 @@ export class EcoFlowSpaceCard extends LitElement {
 
   async _refreshEnergy() {
     if (!this.hass) return;
+    this._refreshWeatherLow();
     // Only hit the WS if a preset tile actually needs Energy-dashboard data.
     const needs = (this._config.tiles || []).some(
       (t) =>
@@ -255,8 +284,39 @@ export class EcoFlowSpaceCard extends LitElement {
     this.requestUpdate();
   }
 
+  /* Today's forecast low for the weather chip. HA removed the `forecast`
+   * attribute in 2024.4, so it has to be asked for via the get_forecasts
+   * service. Refreshed on the 5-minute energy tick; skipped entirely when an
+   * explicit `weather.low` is configured or no weather entity is set. */
+  async _refreshWeatherLow() {
+    const id = this._config.weather?.entity;
+    if (!id || this._config.weather?.low || !this.hass?.callWS) return;
+    try {
+      const resp = await this.hass.callWS({
+        type: "call_service",
+        domain: "weather",
+        service: "get_forecasts",
+        service_data: { type: "daily" },
+        target: { entity_id: id },
+        return_response: true,
+      });
+      const fc = resp?.response?.[id]?.forecast;
+      const today = Array.isArray(fc) && fc.length ? fc[0] : null;
+      const low = today ? (today.templow ?? today.temperature) : null;
+      if (low !== this._weatherLow) {
+        this._weatherLow = low;
+        this.requestUpdate();
+      }
+    } catch (e) {
+      /* entity gone or older HA — the chip just stays hidden */
+    }
+  }
+
   setConfig(config) {
     this._config = config || {};
+    // Reflected as an attribute so OLED mode stays pure CSS (see space-styles.js).
+    this.toggleAttribute("oled", !!this._config.oled);
+    this._syncClockTimer();
   }
 
   static getConfigElement() {
@@ -331,7 +391,10 @@ export class EcoFlowSpaceCard extends LitElement {
    * invert_grid_sign fix; sys_grid_power is the raw, oppositely-signed value). */
   _grid() {
     const grid = this._slotState(SLOT_GRID);
-    return numState(grid != null ? grid : this._slotState(SLOT_GRID_RAW));
+    if (grid != null) return numState(grid);
+    // The raw sensor is export-positive, so flip it to import-positive.
+    const raw = numState(this._slotState(SLOT_GRID_RAW));
+    return raw == null ? raw : -raw;
   }
 
   _flowStates() {
@@ -389,13 +452,22 @@ export class EcoFlowSpaceCard extends LitElement {
       if (this._tmplUnsub[template]) continue;
       this._tmplUnsub[template] = true; // guard against re-subscribing while awaiting
       try {
-        this._tmplUnsub[template] = await this.hass.connection.subscribeMessage(
+        const unsub = await this.hass.connection.subscribeMessage(
           (msg) => {
             this._tmplResults[template] = msg.result;
             this.requestUpdate();
           },
           { type: "render_template", template }
         );
+        // Disconnected (or cleaned up) while the subscribe was in flight:
+        // disconnectedCallback can't release what hadn't resolved yet, so
+        // release it here instead of leaking the server-side subscription.
+        if (!this.isConnected || this._tmplUnsub[template] !== true) {
+          unsub();
+          delete this._tmplUnsub[template];
+        } else {
+          this._tmplUnsub[template] = unsub;
+        }
       } catch (e) {
         this._tmplResults[template] = "⚠";
         this.requestUpdate();
@@ -660,6 +732,9 @@ export class EcoFlowSpaceCard extends LitElement {
     }
     add(this._config.weather?.entity);
     add(this._config.weather?.low);
+    // The auto day/night house render follows the sun.
+    const mode = this._config.house_mode;
+    if (mode !== "day" && mode !== "night") ids.push("sun.sun");
     return relevantStatesChanged(changed.get("hass"), this.hass, ids);
   }
 
@@ -688,6 +763,8 @@ export class EcoFlowSpaceCard extends LitElement {
 
   _activeTab() {
     const tabs = this._tabs();
+    // With the rail hidden Home is pinned (see render), so gate/sync against it.
+    if (!(this._config.show_rail ?? true)) return tabs[0];
     return tabs[this._tab] || tabs[0];
   }
 
@@ -706,18 +783,25 @@ export class EcoFlowSpaceCard extends LitElement {
     const tab = this._activeTab();
     const path = tab?.path || "";
 
-    if (path && path === this._embed.path && this._embed.els.length) {
-      // Same view: Lit re-creates an empty .embed-host each time we return to
-      // this tab, so re-attach the (detached) card elements if they're not in
-      // the current host, then push the latest hass through.
-      if (host.childElementCount === 0) {
-        for (const el of this._embed.els) host.appendChild(el);
+    if (path === this._embed.path) {
+      if (this._embed.status === "ready") {
+        // Same view: Lit re-creates an empty .embed-host each time we return to
+        // this tab, so re-attach the (detached) card elements if they're not in
+        // the current host, then push the latest hass through.
+        if (host.childElementCount === 0) {
+          for (const el of this._embed.els) host.appendChild(el);
+        }
+        for (const el of this._embed.els) el.hass = this.hass;
       }
-      for (const el of this._embed.els) el.hass = this.hass;
+      // loading (a fetch is already in flight), missing, error and empty are
+      // left alone — without this, every hass update (several per second)
+      // would start another lovelace/config fetch and build duplicate cards.
       return;
     }
 
-    // New view: tear the old one down and rebuild.
+    // New view: tear the old one down and rebuild. The generation token voids
+    // this sync if a newer one starts while we're awaiting.
+    const gen = (this._embedGen = (this._embedGen || 0) + 1);
     this._embed = { path, status: "loading", els: [] };
     host.innerHTML = "";
     if (!path) {
@@ -727,13 +811,14 @@ export class EcoFlowSpaceCard extends LitElement {
 
     try {
       const view = await this._fetchView(path);
+      if (gen !== this._embedGen) return; // superseded while awaiting
       if (!view) {
         this._embed.status = "missing";
-        host.innerHTML = "";
         this.requestUpdate();
         return;
       }
       const helpers = await window.loadCardHelpers?.();
+      if (gen !== this._embedGen) return;
       if (!helpers) throw new Error("card helpers unavailable");
       const configs = [...(view.cards || [])];
       for (const sec of view.sections || []) configs.push(...(sec.cards || []));
@@ -748,13 +833,10 @@ export class EcoFlowSpaceCard extends LitElement {
           /* skip a single bad card */
         }
       }
-      // Guard against a tab switch that happened while we awaited.
-      if (this._activeTab()?.path !== path) {
-        host.innerHTML = "";
-        return;
-      }
       this._embed = { path, status: "ready", els };
+      this.requestUpdate();
     } catch (e) {
+      if (gen !== this._embedGen) return;
       this._embed.status = "error";
       this.requestUpdate();
     }
@@ -783,27 +865,30 @@ export class EcoFlowSpaceCard extends LitElement {
     const device = this._device;
     this._map = device ? entityMap(this.hass, device.ents) : {};
     const tabs = this._tabs();
-    const active = tabs[this._tab] || tabs[0];
+    const showRail = this._config.show_rail ?? true;
+    const active = this._activeTab();
 
     const railLabels = this._config.rail_labels ?? false;
     const railAlign = this._config.rail_align || "start";
     const railSize = this._config.rail_size || 1;
     return html`<ha-card>
       <div class="shell" style=${`--rail-scale:${railSize}`}>
-        <nav class="rail align-${railAlign} ${railLabels ? "has-labels" : ""}">
-          ${tabs.map(
-            (tab, i) => html`<button
-              class="rail-btn ${i === this._tab ? "on" : ""}"
-              title=${tab.label || ""}
-              @click=${() => (this._tab = i)}
-            >
-              <ha-icon icon=${tab.icon || "mdi:view-dashboard-outline"}></ha-icon>
-              ${railLabels && tab.label
-                ? html`<span class="rail-label">${tab.label}</span>`
-                : ""}
-            </button>`
-          )}
-        </nav>
+        ${showRail
+          ? html`<nav class="rail align-${railAlign} ${railLabels ? "has-labels" : ""}">
+              ${tabs.map(
+                (tab, i) => html`<button
+                  class="rail-btn ${i === this._tab ? "on" : ""}"
+                  title=${tab.label || ""}
+                  @click=${() => (this._tab = i)}
+                >
+                  <ha-icon icon=${tab.icon || "mdi:view-dashboard-outline"}></ha-icon>
+                  ${railLabels && tab.label
+                    ? html`<span class="rail-label">${tab.label}</span>`
+                    : ""}
+                </button>`
+              )}
+            </nav>`
+          : ""}
         <div class="main">
           ${active.id === "home" ? this._renderHome() : this._renderEmbed()}
         </div>
@@ -901,12 +986,15 @@ export class EcoFlowSpaceCard extends LitElement {
     const a = st.attributes || {};
     const tempUnit =
       a.temperature_unit || this.hass.config?.unit_system?.temperature || "°";
-    // Night low: an explicit config value wins (shown as-is), else today's
-    // forecast low (rounded, with the temperature unit appended).
+    // Night low: an explicit config value wins (shown as-is), else the fetched
+    // forecast low (see _refreshWeatherLow), else the legacy pre-2024.4
+    // `forecast` attribute (rounded, with the temperature unit appended).
     const configLow = this._resolveValue(this._config.weather?.low);
     let lowText = "";
     if (configLow !== "") {
       lowText = configLow;
+    } else if (this._weatherLow != null) {
+      lowText = `${Math.round(this._weatherLow)} ${tempUnit}`;
     } else if (Array.isArray(a.forecast) && a.forecast.length) {
       const fl = a.forecast[0].templow ?? a.forecast[0].temperature;
       if (fl != null) lowText = `${Math.round(fl)} ${tempUnit}`;
@@ -921,13 +1009,19 @@ export class EcoFlowSpaceCard extends LitElement {
       >
         ${a.temperature != null
           ? html`<span class="w-grp"
-              ><ha-icon icon="mdi:thermometer"></ha-icon
+              ><ha-icon
+                icon="mdi:thermometer"
+                style=${`color:${this._config.weather?.temp_color || WEATHER_TEMP_COLOR}`}
+              ></ha-icon
               ><span>${Math.round(a.temperature)} ${tempUnit}</span></span
             >`
           : ""}
         ${a.humidity != null
           ? html`<span class="w-grp"
-              ><ha-icon icon="mdi:water-percent"></ha-icon
+              ><ha-icon
+                icon="mdi:water-percent"
+                style=${`color:${this._config.weather?.humidity_color || WEATHER_HUMIDITY_COLOR}`}
+              ></ha-icon
               ><span>${Math.round(a.humidity)} %</span></span
             >`
           : ""}
