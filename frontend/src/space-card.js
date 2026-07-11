@@ -269,7 +269,6 @@ export class EcoFlowSpaceCard extends LitElement {
 
   async _refreshEnergy() {
     if (!this.hass) return;
-    this._refreshWeatherLow();
     // Only hit the WS if a preset tile actually needs Energy-dashboard data.
     const needs = (this._config.tiles || []).some(
       (t) =>
@@ -284,33 +283,6 @@ export class EcoFlowSpaceCard extends LitElement {
     this.requestUpdate();
   }
 
-  /* Today's forecast low for the weather chip. HA removed the `forecast`
-   * attribute in 2024.4, so it has to be asked for via the get_forecasts
-   * service. Refreshed on the 5-minute energy tick; skipped entirely when an
-   * explicit `weather.low` is configured or no weather entity is set. */
-  async _refreshWeatherLow() {
-    const id = this._config.weather?.entity;
-    if (!id || this._config.weather?.low || !this.hass?.callWS) return;
-    try {
-      const resp = await this.hass.callWS({
-        type: "call_service",
-        domain: "weather",
-        service: "get_forecasts",
-        service_data: { type: "daily" },
-        target: { entity_id: id },
-        return_response: true,
-      });
-      const fc = resp?.response?.[id]?.forecast;
-      const today = Array.isArray(fc) && fc.length ? fc[0] : null;
-      const low = today ? (today.templow ?? today.temperature) : null;
-      if (low !== this._weatherLow) {
-        this._weatherLow = low;
-        this.requestUpdate();
-      }
-    } catch (e) {
-      /* entity gone or older HA — the chip just stays hidden */
-    }
-  }
 
   setConfig(config) {
     this._config = config || {};
@@ -986,19 +958,9 @@ export class EcoFlowSpaceCard extends LitElement {
     const a = st.attributes || {};
     const tempUnit =
       a.temperature_unit || this.hass.config?.unit_system?.temperature || "°";
-    // Night low: an explicit config value wins (shown as-is), else the fetched
-    // forecast low (see _refreshWeatherLow), else the legacy pre-2024.4
-    // `forecast` attribute (rounded, with the temperature unit appended).
-    const configLow = this._resolveValue(this._config.weather?.low);
-    let lowText = "";
-    if (configLow !== "") {
-      lowText = configLow;
-    } else if (this._weatherLow != null) {
-      lowText = `${Math.round(this._weatherLow)} ${tempUnit}`;
-    } else if (Array.isArray(a.forecast) && a.forecast.length) {
-      const fl = a.forecast[0].templow ?? a.forecast[0].temperature;
-      if (fl != null) lowText = `${Math.round(fl)} ${tempUnit}`;
-    }
+    // Night low (moon chip): opt-in only — shown when `weather.low` is
+    // configured (text, entity or template), hidden otherwise.
+    const lowText = this._resolveValue(this._config.weather?.low);
     const scale = this._config.weather_size || 1;
     return html`<div class="topbar-right">
       <button
