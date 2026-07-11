@@ -259,7 +259,6 @@
     "f_color": "Value color (optional)",
     "f_icon_color": "Icon color (optional)",
     "f_dot": "Status dot color (optional)",
-    "f_low": "Night low (text, entity or template)",
     "f_temp_color": "Temperature icon color",
     "f_humidity_color": "Humidity icon color",
     "f_slot": "Sensor",

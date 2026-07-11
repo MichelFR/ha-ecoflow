@@ -283,9 +283,6 @@ export class EcoFlowSpaceCardEditor extends LitElement {
           this._setWeather("entity", ev.detail.value.value || "");
         }}
       ></ha-form>
-      ${this._textField(this._t("space.f_low"), this._config.weather?.low || "", (v) =>
-        this._setWeather("low", v)
-      )}
       ${this._colorField(
         this._t("space.f_temp_color"),
         this._config.weather?.temp_color,

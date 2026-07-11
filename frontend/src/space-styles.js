@@ -243,9 +243,6 @@ export const spaceCardStyles = css`
     --mdc-icon-size: calc(19px * var(--ef-scale, 1));
     color: var(--sp-muted);
   }
-  .w-grp.moon ha-icon {
-    color: #8e9bff;
-  }
 
   /* -- the illustration (same coordinate box as the House card) -- */
   .stage {

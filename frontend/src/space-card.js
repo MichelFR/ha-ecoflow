@@ -703,7 +703,6 @@ export class EcoFlowSpaceCard extends LitElement {
       add(tile.secondary);
     }
     add(this._config.weather?.entity);
-    add(this._config.weather?.low);
     // The auto day/night house render follows the sun.
     const mode = this._config.house_mode;
     if (mode !== "day" && mode !== "night") ids.push("sun.sun");
@@ -958,9 +957,6 @@ export class EcoFlowSpaceCard extends LitElement {
     const a = st.attributes || {};
     const tempUnit =
       a.temperature_unit || this.hass.config?.unit_system?.temperature || "°";
-    // Night low (moon chip): opt-in only — shown when `weather.low` is
-    // configured (text, entity or template), hidden otherwise.
-    const lowText = this._resolveValue(this._config.weather?.low);
     const scale = this._config.weather_size || 1;
     return html`<div class="topbar-right">
       <button
@@ -985,12 +981,6 @@ export class EcoFlowSpaceCard extends LitElement {
                 style=${`color:${this._config.weather?.humidity_color || WEATHER_HUMIDITY_COLOR}`}
               ></ha-icon
               ><span>${Math.round(a.humidity)} %</span></span
-            >`
-          : ""}
-        ${lowText
-          ? html`<span class="w-grp moon"
-              ><ha-icon icon="mdi:weather-night"></ha-icon
-              ><span>${lowText}</span></span
             >`
           : ""}
       </button>

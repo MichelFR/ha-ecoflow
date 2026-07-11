@@ -259,7 +259,6 @@
     "f_color": "Wertfarbe (optional)",
     "f_icon_color": "Symbolfarbe (optional)",
     "f_dot": "Statuspunkt-Farbe (optional)",
-    "f_low": "Nacht-Tiefstwert (Text, Entität oder Template)",
     "f_temp_color": "Symbolfarbe Temperatur",
     "f_humidity_color": "Symbolfarbe Luftfeuchte",
     "f_slot": "Sensor",
