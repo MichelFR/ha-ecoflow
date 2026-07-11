@@ -119,22 +119,30 @@ async function fetchStatUnits(hass, statIds) {
   const key = [...statIds].sort().join("|");
   const cached = conn && statUnitsCache.get(conn);
   if (cached && cached.key === key) return cached.map;
+  // NOTE: list_statistic_ids has no statistic_ids filter — the filtered
+  // lookup is get_statistics_metadata. (Passing the filter to the former
+  // fails schema validation; with no units every Wh statistic is mis-read
+  // as kWh — 1000× totals. Hence the unfiltered fallback rather than {}.)
+  let list;
   try {
-    const list =
-      (await hass.callWS({
-        type: "recorder/list_statistic_ids",
-        statistic_ids: statIds,
-      })) || [];
-    const map = {};
-    for (const s of list) {
-      map[s.statistic_id] =
-        s.statistics_unit_of_measurement || s.unit_of_measurement || s.display_unit_of_measurement || "";
-    }
-    if (conn) statUnitsCache.set(conn, { key, map });
-    return map;
+    list = await hass.callWS({
+      type: "recorder/get_statistics_metadata",
+      statistic_ids: statIds,
+    });
   } catch (e) {
-    return {};
+    try {
+      list = await hass.callWS({ type: "recorder/list_statistic_ids" });
+    } catch (e2) {
+      return {};
+    }
   }
+  const map = {};
+  for (const s of list || []) {
+    map[s.statistic_id] =
+      s.statistics_unit_of_measurement || s.unit_of_measurement || s.display_unit_of_measurement || "";
+  }
+  if (conn) statUnitsCache.set(conn, { key, map });
+  return map;
 }
 
 function toKWh(value, unit) {
