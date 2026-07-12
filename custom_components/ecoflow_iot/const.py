@@ -64,6 +64,11 @@ DEFAULT_MQTT_STALE_SECONDS: Final = 120  # consider MQTT stale after this many s
 # passive subscriber sees data go stale even while the connection stays up.
 DEFAULT_MQTT_REFRESH_INTERVAL: Final = 20  # seconds
 DEFAULT_ENABLE_MQTT: Final = True
+# Consecutive poll ticks with the MQTT connection nominally CONNECTED but every
+# device stale before the coordinator force-reconnects the broker session. A
+# connection can claim to be up while delivering nothing (broker-side
+# subscription loss, half-open socket); only a reconnect restores live data.
+MQTT_WATCHDOG_TICKS: Final = 3
 # Stream firmware reports gridConnectionPower with the opposite sign to Home
 # Assistant's grid convention (it reports feeding the grid as POSITIVE, despite
 # the docs claiming feed-in is negative). Default to normalising it so that

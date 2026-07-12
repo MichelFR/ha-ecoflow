@@ -5,13 +5,17 @@ Live data arrives via MQTT and is pushed to entities immediately. The periodic
 disconnected or has gone stale, when a device has gone too long without a
 *full* quota snapshot (MQTT pushes are partial, so individual fields can
 freeze while the device still looks fresh), and to refresh any HTTP-only
-fields. Control
+fields. A watchdog on the same tick force-reconnects the broker session when
+it claims to be CONNECTED but no device has delivered data for several
+cycles (a silently dead connection otherwise degrades to HTTP cadence
+forever — only a reload would restore live updates). Control
 commands are published over MQTT (awaiting the device's ``set_reply``) and fall
 back to an HTTP ``PUT`` if MQTT is unavailable or unacknowledged.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Callable
@@ -31,6 +35,7 @@ from .const import (
     DEFAULT_MQTT_STALE_SECONDS,
     DEFAULT_POLL_INTERVAL,
     DOMAIN,
+    MQTT_WATCHDOG_TICKS,
     OPERATE_LATEST_QUOTAS,
     SET_ACK_TIMEOUT,
     SN_PREFIX_LEN,
@@ -70,6 +75,12 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         self._enable_mqtt = enable_mqtt
         self._mqtt: EcoFlowMqttClient | None = None
         self._cert: Certification | None = None
+        # MQTT silence watchdog: consecutive ticks with the connection up but
+        # every device stale, and whether the current silence episode already
+        # logged its reconnect at WARNING (repeats drop to DEBUG).
+        self._stale_ticks = 0
+        self._watchdog_warned = False
+        self._restart_lock = asyncio.Lock()
         self.devices: dict[str, EcoFlowDevice] = {}
         # Serials that expose at least one http_only entity (refreshed over HTTP
         # on the poll interval even while MQTT is connected).
@@ -171,7 +182,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         )
 
     async def _async_active_refresh(self, _now: Any = None) -> None:
-        """Publish a 'latestQuotas' get for each online device.
+        """Publish a 'latestQuotas' get for each device.
 
         Devices throttle their MQTT push cadence when idle, so a passive
         subscriber sees data go stale even while the connection stays up. This
@@ -183,9 +194,10 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         if mqtt is None or not mqtt.connected:
             return
         for sn in self.devices:
-            state = self.data.get(sn)
-            if state is not None and not state.online:
-                continue
+            # Deliberately also pull devices marked offline: the flag can be
+            # stale (a missed status push would otherwise suppress the refresh
+            # forever), publishing to a truly-offline device is harmless, and
+            # the reply is what heals the flag via _handle_quota.
             payload = {
                 "id": int(time.time() * 1000),
                 "version": "1.1",
@@ -201,17 +213,60 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
 
     async def _async_refresh_certification(self) -> None:
         """Re-fetch broker credentials after an auth failure and reconnect."""
-        if self._mqtt is None:
+        await self._async_restart_mqtt(refresh_certification=True)
+
+    async def _async_restart_mqtt(self, *, refresh_certification: bool = False) -> None:
+        """Tear down and rebuild the MQTT connection.
+
+        Single-flight: concurrent triggers (the silence watchdog, auth-failure
+        refreshes stacked by paho's CONNACK retry loop) are dropped rather than
+        queued — interleaved disconnect/connect pairs would orphan a second
+        paho client that fights the tracked one for the same client ID.
+        """
+        mqtt = self._mqtt
+        if mqtt is None or self._restart_lock.locked():
             return
-        try:
-            cert_data = await self._http.get_certification()
-        except EcoFlowError as err:
-            _LOGGER.warning("Certification refresh failed: %s", err)
+        async with self._restart_lock:
+            if refresh_certification:
+                try:
+                    cert_data = await self._http.get_certification()
+                except EcoFlowError as err:
+                    _LOGGER.warning("Certification refresh failed: %s", err)
+                    return
+                self._cert = Certification.from_response(cert_data)
+                mqtt.update_certification(self._cert)
+            await mqtt.async_disconnect()
+            await mqtt.async_connect()
+
+    async def _async_mqtt_watchdog(self, stale_sns: set[str]) -> None:
+        """Force a reconnect when MQTT claims CONNECTED but delivers nothing.
+
+        A connection can look up while being silently dead (broker-side
+        subscription loss, half-open socket, orphaned session). The HTTP
+        fallback keeps data flowing at the poll cadence, but only a reconnect
+        restores live updates — the same effect as reloading the entry,
+        without the reload.
+        """
+        mqtt = self._mqtt
+        if mqtt is None or not mqtt.connected or stale_sns != set(self.devices):
+            self._stale_ticks = 0
+            self._watchdog_warned = False
             return
-        self._cert = Certification.from_response(cert_data)
-        await self._mqtt.async_disconnect()
-        self._mqtt.update_certification(self._cert)
-        await self._mqtt.async_connect()
+        self._stale_ticks += 1
+        if self._stale_ticks < MQTT_WATCHDOG_TICKS:
+            return
+        self._stale_ticks = 0
+        # First reconnect of a silence episode is WARNING; repeats (e.g. all
+        # devices genuinely powered off for hours) drop to DEBUG.
+        log = _LOGGER.debug if self._watchdog_warned else _LOGGER.warning
+        log(
+            "MQTT connected to %s but no device data for %s update cycles; "
+            "forcing a reconnect",
+            mqtt.broker,
+            MQTT_WATCHDOG_TICKS,
+        )
+        self._watchdog_warned = True
+        await self._async_restart_mqtt()
 
     async def async_shutdown(self) -> None:
         """Disconnect MQTT on unload."""
@@ -225,6 +280,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
     async def _async_update_data(self) -> dict[str, DeviceState]:
         """Periodic tick: poll HTTP for devices MQTT cannot supply freshly."""
         stale_sns = self._stale_mqtt_sns()
+        await self._async_mqtt_watchdog(stale_sns)
         resync_sns = self._full_snapshot_overdue_sns() - stale_sns
         for sn in stale_sns | resync_sns:
             try:
@@ -308,6 +364,10 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             return
         state.merge_quota(values, DataSource.MQTT)
         state.last_mqtt_ts = time.time()
+        # The device is demonstrably talking to us — heal a stale offline flag
+        # (after setup, only a status push could ever set it back to True, and
+        # a missed one would suppress the active refresh and availability).
+        state.online = True
         if full:
             state.last_full_ts = state.last_mqtt_ts
         self.async_set_updated_data(self.data)

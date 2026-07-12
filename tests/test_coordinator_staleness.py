@@ -97,13 +97,23 @@ import ecoflow_iot.coordinator as coordinator_module  # noqa: E402
 
 
 class FakeMqtt:
-    connected = True
+    broker = "broker:8883"
 
     def __init__(self) -> None:
+        self.connected = True
         self.gets: list[tuple[str, dict]] = []
+        self.restarts: list[str] = []
 
     async def async_publish_get(self, sn: str, payload: dict) -> None:
         self.gets.append((sn, payload))
+
+    async def async_disconnect(self) -> None:
+        self.restarts.append("disconnect")
+        # Yield so a concurrent restart attempt can observe the held lock.
+        await asyncio.sleep(0)
+
+    async def async_connect(self) -> None:
+        self.restarts.append("connect")
 
 
 class FakeHttp:
@@ -121,6 +131,9 @@ def make_coordinator(now: float = 1000.0) -> EcoFlowCoordinator:
     coord._stale_seconds = 120
     coord._http = FakeHttp()
     coord._http_only_sns = set()
+    coord._stale_ticks = 0
+    coord._watchdog_warned = False
+    coord._restart_lock = asyncio.Lock()
     coord.devices = {"fresh": object(), "stale": object(), "never": object()}
     coord.data = {
         "fresh": DeviceState(
@@ -204,14 +217,15 @@ def test_active_refresh_publishes_latest_quotas_for_online_devices(monkeypatch):
         assert "sn" in payload and "id" in payload
 
 
-def test_active_refresh_skips_offline_devices(monkeypatch):
+def test_active_refresh_includes_offline_devices(monkeypatch):
+    """A stale offline flag must not suppress the pull — the reply heals it."""
     monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
     coord = make_coordinator()
     coord.data["stale"].online = False
 
     asyncio.run(coord._async_active_refresh())
 
-    assert {sn for sn, _ in coord._mqtt.gets} == {"fresh", "never"}
+    assert {sn for sn, _ in coord._mqtt.gets} == {"fresh", "stale", "never"}
 
 
 def test_active_refresh_noop_when_mqtt_disconnected(monkeypatch):
@@ -222,3 +236,77 @@ def test_active_refresh_noop_when_mqtt_disconnected(monkeypatch):
     asyncio.run(coord._async_active_refresh())
 
     assert coord._mqtt.gets == []
+
+
+def test_quota_arrival_marks_device_online(monkeypatch):
+    """MQTT data from a device is proof of life — it heals a stuck offline flag."""
+    monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
+    coord = make_coordinator()
+    coord.data["stale"].online = False
+
+    coord._handle_quota("stale", {"a": 1}, False)
+
+    assert coord.data["stale"].online is True
+
+
+def make_all_stale(coord) -> None:
+    for state in coord.data.values():
+        state.last_mqtt_ts = 1000.0 - 121
+        state.last_full_ts = 1000.0 - 121
+
+
+def test_watchdog_reconnects_after_consecutive_all_stale_ticks(monkeypatch):
+    monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
+    coord = make_coordinator()
+    make_all_stale(coord)
+
+    async def scenario() -> None:
+        for _ in range(3):
+            await coord._async_update_data()
+
+    asyncio.run(scenario())
+
+    assert coord._mqtt.restarts == ["disconnect", "connect"]
+
+
+def test_watchdog_counter_resets_when_any_device_is_fresh(monkeypatch):
+    monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
+    coord = make_coordinator()  # "fresh" has recent MQTT data
+    coord._stale_ticks = 2
+
+    asyncio.run(coord._async_update_data())
+
+    assert coord._stale_ticks == 0
+    assert coord._mqtt.restarts == []
+
+
+def test_watchdog_noop_while_disconnected(monkeypatch):
+    """paho handles reconnects while down; the watchdog must not fight it."""
+    monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
+    coord = make_coordinator()
+    make_all_stale(coord)
+    coord._mqtt.connected = False
+
+    async def scenario() -> None:
+        for _ in range(3):
+            await coord._async_update_data()
+
+    asyncio.run(scenario())
+
+    assert coord._mqtt.restarts == []
+
+
+def test_restart_is_single_flight(monkeypatch):
+    """Concurrent restart triggers must not interleave disconnect/connect."""
+    monkeypatch.setattr(coordinator_module.time, "time", lambda: 1000.0)
+    coord = make_coordinator()
+
+    async def scenario() -> None:
+        await asyncio.gather(
+            coord._async_restart_mqtt(),
+            coord._async_restart_mqtt(),
+        )
+
+    asyncio.run(scenario())
+
+    assert coord._mqtt.restarts == ["disconnect", "connect"]
