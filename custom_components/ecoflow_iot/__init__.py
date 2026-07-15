@@ -20,14 +20,12 @@ from .const import (
     CARD_ASSET_BASE,
     CARD_URL,
     CONF_ACCESS_KEY,
-    CONF_ADD_SMART_PLUGS,
     CONF_ENABLE_MQTT,
     CONF_MQTT_REFRESH_INTERVAL,
     CONF_POLL_INTERVAL,
     CONF_MQTT_STALE_SECONDS,
     CONF_REGION,
     CONF_SECRET_KEY,
-    DEFAULT_ADD_SMART_PLUGS,
     DEFAULT_ENABLE_MQTT,
     DEFAULT_MQTT_REFRESH_INTERVAL,
     DEFAULT_MQTT_STALE_SECONDS,
@@ -76,7 +74,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcoFlowConfigEntry) -> b
             CONF_MQTT_REFRESH_INTERVAL, DEFAULT_MQTT_REFRESH_INTERVAL
         ),
         enable_mqtt=options.get(CONF_ENABLE_MQTT, DEFAULT_ENABLE_MQTT),
-        add_smart_plugs=options.get(CONF_ADD_SMART_PLUGS, DEFAULT_ADD_SMART_PLUGS),
     )
 
     try:

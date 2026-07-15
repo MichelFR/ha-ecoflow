@@ -29,7 +29,6 @@ from homeassistant.helpers.selector import (
 from .api import EcoFlowAuthError, EcoFlowConnectionError, EcoFlowError, EcoFlowHttpClient
 from .const import (
     CONF_ACCESS_KEY,
-    CONF_ADD_SMART_PLUGS,
     CONF_ENABLE_MQTT,
     CONF_INVERT_GRID_SIGN,
     CONF_MQTT_REFRESH_INTERVAL,
@@ -39,7 +38,6 @@ from .const import (
     CONF_RESET_GRID_ENERGY,
     CONF_SECRET_KEY,
     DATA_RESET_ENERGY_IDS,
-    DEFAULT_ADD_SMART_PLUGS,
     DEFAULT_ENABLE_MQTT,
     DEFAULT_INVERT_GRID_SIGN,
     DEFAULT_MQTT_REFRESH_INTERVAL,
@@ -219,12 +217,6 @@ class EcoFlowOptionsFlow(OptionsFlow):
                     CONF_INVERT_GRID_SIGN,
                     default=options.get(
                         CONF_INVERT_GRID_SIGN, DEFAULT_INVERT_GRID_SIGN
-                    ),
-                ): bool,
-                vol.Required(
-                    CONF_ADD_SMART_PLUGS,
-                    default=options.get(
-                        CONF_ADD_SMART_PLUGS, DEFAULT_ADD_SMART_PLUGS
                     ),
                 ): bool,
                 vol.Required(CONF_RESET_GRID_ENERGY, default=False): bool,

@@ -67,7 +67,16 @@ pkg = types.ModuleType("ecoflow_iot")
 pkg.__path__ = [str(root / "ecoflow_iot")]
 sys.modules["ecoflow_iot"] = pkg
 
-from ecoflow_iot.devices import DEVICE_REGISTRY, resolve_device  # noqa: E402
+from ecoflow_iot.devices import (  # noqa: E402
+    DEVICE_REGISTRY,
+    is_silenced,
+    resolve_device,
+)
+
+# Silenced third-party devices: recognised but intentionally unsupported.
+assert is_silenced("SM2AE4B063E5168C"), "SM2A should be silenced"
+assert is_silenced("SM3AZAB1234567890"), "SM3A should be silenced"
+assert not is_silenced("HW52ZDH1RF3J0033"), "HW52 must not be silenced"
 
 PLATFORMS = [Auto("Platform.SENSOR"), Auto("Platform.BINARY_SENSOR"),
              Auto("Platform.SWITCH"), Auto("Platform.NUMBER"), Auto("Platform.SELECT")]
@@ -80,7 +89,10 @@ cases = [
     ("BK11ZEBB2H350011", {}, "StreamDevice"),
     ("HW513000SF767194", {}, "PowerStreamDevice"),
     ("HW52ZDH1RF3J0033", {}, "SmartPlugDevice"),
-    ("SM2AZAB1234567890", {}, "EfShellyPlugDevice"),
+    # EcoFlow x Shelly devices are silenced (recognised, but not served by the
+    # open API) — resolve_device returns None; the coordinator skips them
+    # without a repair (see is_silenced / SILENCED_SN_PREFIXES).
+    ("SM2AE4B063E5168C", {}, None),
     ("R331ZEB4ZEAL0528", {}, "Delta2Device"),
     ("R351ZFB4HF6L0030", {}, "Delta2MaxDevice"),
     ("R621ZEB1XE8S0029", {}, "River2ProDevice"),

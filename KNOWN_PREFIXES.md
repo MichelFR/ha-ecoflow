@@ -53,13 +53,25 @@ correctly instead of raising an "unsupported device" repair.
 | `BK` (`BK0`–`BK6`, `BK11`, `BK12`) | Stream AC / AC Pro / Ultra / Ultra X / Pro / Microinverter | high (app registry) |
 | `HW51` | PowerStream | high (app registry) |
 | `HW52` | Smart Plug | high (app registry) |
-| `SM2A` | EcoFlow x Shelly Plug | medium (app `sm002` reset asset; sibling `SM3A`=`sm003`=EF x Shelly Pro3EM meter). Quota schema undocumented — entities are provisional, mirroring `HW52`. |
 | `HJ3`, `J32` | PowerOcean | high (`HJ3` docs + app registry, `J32` field-observed) |
 | `BX1` | Glacier | high (app registry) |
 | `M10` | Power Kits | high (app registry; `M20/M3H` are other products) |
 | `KT2` | WAVE (Air Conditioner) | high (app registry) |
 | `SP10` | Smart Home Panel | medium |
 | `HD3` | Smart Home Panel 2 | high (app registry) |
+
+## Recognised but not supported (silenced — no repair raised)
+
+Some devices are bound to an EcoFlow account but are **not served by the open
+developer API** this integration uses, so their data can't be read or controlled
+here. They are recognised only so the integration skips them silently instead of
+raising an "unsupported device" repair (see `SILENCED_SN_PREFIXES` in
+`custom_components/ecoflow_iot/devices/__init__.py`).
+
+| Prefix(es) | Model | Why unsupported |
+|---|---|---|
+| `SM2A` | EcoFlow x Shelly Plug (app `sm002`) | Third-party device served only by EcoFlow's private app API (`/iot-smart-voice/thirdDevice/...`, user-login auth). The open API returns no quota. These are genuine Shelly Gen2 devices — use Home Assistant's native **Shelly** integration for local data + control. |
+| `SM3A` | EcoFlow x Shelly Pro3EM meter (app `sm003`) | Same as above. |
 
 ## Sources
 

@@ -89,6 +89,7 @@ sys.modules["ecoflow_iot.api"] = api
 devices = types.ModuleType("ecoflow_iot.devices")
 devices.EcoFlowDevice = object
 devices.resolve_device = lambda sn, quota: None
+devices.is_silenced = lambda sn: False
 sys.modules["ecoflow_iot.devices"] = devices
 
 from ecoflow_iot.coordinator import EcoFlowCoordinator  # noqa: E402

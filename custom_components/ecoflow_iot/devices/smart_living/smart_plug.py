@@ -179,7 +179,6 @@ class SmartPlugDevice(EcoFlowDevice):
 
     model = "EcoFlow Smart Plug"
     sn_prefixes: tuple[str, ...] = _SN_PREFIXES
-    is_smart_plug = True
 
     @classmethod
     def matches(cls, sn: str, quota: Mapping[str, Any]) -> bool:

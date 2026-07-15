@@ -23,7 +23,6 @@ Auto-generated per-device entity tables. Regenerate with `python3 scripts/gen_de
 - [EcoFlow Power Kits](smart_living/power_kits.md)
 - [EcoFlow Smart Plug](smart_living/smart_plug.md)
 - [EcoFlow WAVE](smart_living/wave.md)
-- [EcoFlow x Shelly Plug](smart_living/x_shelly_plug.md)
 
 ## Solar Systems
 

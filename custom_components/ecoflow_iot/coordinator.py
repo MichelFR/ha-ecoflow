@@ -40,7 +40,7 @@ from .const import (
     SET_ACK_TIMEOUT,
     SN_PREFIX_LEN,
 )
-from .devices import EcoFlowDevice, resolve_device
+from .devices import EcoFlowDevice, is_silenced, resolve_device
 from .models import Certification, ConnectionState, DataSource, DeviceState
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,7 +59,6 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         stale_seconds: int = DEFAULT_MQTT_STALE_SECONDS,
         refresh_interval: int = DEFAULT_MQTT_REFRESH_INTERVAL,
         enable_mqtt: bool = True,
-        add_smart_plugs: bool = False,
     ) -> None:
         """Initialise the coordinator (call :meth:`async_setup` next)."""
         super().__init__(
@@ -74,7 +73,6 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         self._refresh_interval = refresh_interval
         self._refresh_unsub: Callable[[], None] | None = None
         self._enable_mqtt = enable_mqtt
-        self._add_smart_plugs = add_smart_plugs
         self._mqtt: EcoFlowMqttClient | None = None
         self._cert: Certification | None = None
         # MQTT silence watchdog: consecutive ticks with the connection up but
@@ -141,12 +139,11 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
                 _LOGGER.warning("Initial quota fetch failed for %s: %s", sn, err)
             device = resolve_device(sn, state.quota)
             if device is None:
-                self._notify_unsupported(sn)
-                self.unmapped[sn] = state
-                continue
-            if device.is_smart_plug and not self._add_smart_plugs:
-                # Recognised, but plugs are opt-in: skip without a repair issue.
-                # Keep the raw quota for diagnostics/entity mapping.
+                # Known third-party devices (EcoFlow x Shelly) can't be served by
+                # the open API, so skip them silently. Genuinely unknown devices
+                # raise a repair so support can be added.
+                if not is_silenced(sn):
+                    self._notify_unsupported(sn)
                 self.unmapped[sn] = state
                 continue
             self.devices[sn] = device

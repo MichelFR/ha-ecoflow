@@ -27,7 +27,6 @@ from .power_stations import (
     River2ProDevice,
 )
 from .smart_living import (
-    EfShellyPlugDevice,
     GlacierDevice,
     PowerKitsDevice,
     SmartPlugDevice,
@@ -60,7 +59,6 @@ DEVICE_REGISTRY: tuple[type[EcoFlowDevice], ...] = (
     # Home battery
     PowerOceanDevice,
     # Smart living
-    EfShellyPlugDevice,
     GlacierDevice,
     PowerKitsDevice,
     SmartPlugDevice,
@@ -108,4 +106,23 @@ def resolve_device(sn: str, quota: Mapping[str, Any]) -> EcoFlowDevice | None:
     return None
 
 
-__all__ = ["DEVICE_REGISTRY", "EcoFlowDevice", "resolve_device"]
+# EcoFlow "x Shelly" devices (SN prefix SM2A = plug, SM3A = Pro3EM meter). These
+# are third-party devices served only by EcoFlow's private app API — the open
+# developer API this integration uses returns no data for them, so they can't be
+# supported. They are recognised here purely so the coordinator skips them
+# silently instead of raising an "unsupported device" repair.
+SILENCED_SN_PREFIXES: tuple[str, ...] = ("SM2A", "SM3A")
+
+
+def is_silenced(sn: str) -> bool:
+    """Whether ``sn`` is a known-unsupported device to skip without a repair."""
+    return any(sn.startswith(prefix) for prefix in SILENCED_SN_PREFIXES)
+
+
+__all__ = [
+    "DEVICE_REGISTRY",
+    "EcoFlowDevice",
+    "SILENCED_SN_PREFIXES",
+    "is_silenced",
+    "resolve_device",
+]
