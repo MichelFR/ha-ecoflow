@@ -2,7 +2,7 @@
 
 <p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/glacier.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/glacier.png" alt="EcoFlow Glacier" width="240"></picture></p>
 
-**Category:** Smart Living · **Auto-detected by SN prefix:** `BX11Z`
+**Category:** Smart Living · **Auto-detected by SN prefix:** `BX1`
 
 > Generated from `custom_components/ecoflow_iot/devices/smart_living/glacier.py` by `scripts/gen_device_docs.py` — do not edit by hand.
 > Every device also exposes an always-available **Connection** diagnostic sensor (MQTT state + data source).

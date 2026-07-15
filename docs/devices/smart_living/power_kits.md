@@ -2,7 +2,7 @@
 
 <p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/power-kits.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/power-kits.png" alt="EcoFlow Power Kits" width="240"></picture></p>
 
-**Category:** Smart Living · **Auto-detected by SN prefix:** `M106Z`, `M109Z`, `M102Z`, `M10EZ`, `M10E1`, `M106W`
+**Category:** Smart Living · **Auto-detected by SN prefix:** `M10`
 
 > Generated from `custom_components/ecoflow_iot/devices/smart_living/power_kits.py` by `scripts/gen_device_docs.py` — do not edit by hand.
 > Every device also exposes an always-available **Connection** diagnostic sensor (MQTT state + data source).

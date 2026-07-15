@@ -80,6 +80,7 @@ cases = [
     ("BK11ZEBB2H350011", {}, "StreamDevice"),
     ("HW513000SF767194", {}, "PowerStreamDevice"),
     ("HW52ZDH1RF3J0033", {}, "SmartPlugDevice"),
+    ("SM2AZAB1234567890", {}, "EfShellyPlugDevice"),
     ("R331ZEB4ZEAL0528", {}, "Delta2Device"),
     ("R351ZFB4HF6L0030", {}, "Delta2MaxDevice"),
     ("R621ZEB1XE8S0029", {}, "River2ProDevice"),

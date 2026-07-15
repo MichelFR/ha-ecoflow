@@ -2,7 +2,7 @@
 
 <p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/delta-2.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/delta-2.png" alt="EcoFlow Delta 2" width="240"></picture></p>
 
-**Category:** Power Stations · **Auto-detected by SN prefix:** `R331`
+**Category:** Power Stations · **Auto-detected by SN prefix:** `R33`
 
 > Generated from `custom_components/ecoflow_iot/devices/power_stations/delta_2.py` by `scripts/gen_device_docs.py` — do not edit by hand.
 > Every device also exposes an always-available **Connection** diagnostic sensor (MQTT state + data source).

@@ -2,7 +2,7 @@
 
 <p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/delta-pro-ultra.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/delta-pro-ultra.png" alt="EcoFlow Delta Pro Ultra" width="240"></picture></p>
 
-**Category:** Power Stations · **Auto-detected by SN prefix:** `Y711Z`
+**Category:** Power Stations · **Auto-detected by SN prefix:** `Y71`
 
 > Generated from `custom_components/ecoflow_iot/devices/power_stations/delta_pro_ultra.py` by `scripts/gen_device_docs.py` — do not edit by hand.
 > Every device also exposes an always-available **Connection** diagnostic sensor (MQTT state + data source).

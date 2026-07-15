@@ -59,6 +59,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         stale_seconds: int = DEFAULT_MQTT_STALE_SECONDS,
         refresh_interval: int = DEFAULT_MQTT_REFRESH_INTERVAL,
         enable_mqtt: bool = True,
+        add_smart_plugs: bool = False,
     ) -> None:
         """Initialise the coordinator (call :meth:`async_setup` next)."""
         super().__init__(
@@ -73,6 +74,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         self._refresh_interval = refresh_interval
         self._refresh_unsub: Callable[[], None] | None = None
         self._enable_mqtt = enable_mqtt
+        self._add_smart_plugs = add_smart_plugs
         self._mqtt: EcoFlowMqttClient | None = None
         self._cert: Certification | None = None
         # MQTT silence watchdog: consecutive ticks with the connection up but
@@ -82,6 +84,10 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         self._watchdog_warned = False
         self._restart_lock = asyncio.Lock()
         self.devices: dict[str, EcoFlowDevice] = {}
+        # Devices found on the account that got no entities — either unsupported
+        # or a smart plug excluded by the opt-in option. Their raw quota is kept
+        # so it can be surfaced in diagnostics for future entity mapping.
+        self.unmapped: dict[str, DeviceState] = {}
         # Serials that expose at least one http_only entity (refreshed over HTTP
         # on the poll interval even while MQTT is connected).
         self._http_only_sns: set[str] = set()
@@ -136,6 +142,12 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             device = resolve_device(sn, state.quota)
             if device is None:
                 self._notify_unsupported(sn)
+                self.unmapped[sn] = state
+                continue
+            if device.is_smart_plug and not self._add_smart_plugs:
+                # Recognised, but plugs are opt-in: skip without a repair issue.
+                # Keep the raw quota for diagnostics/entity mapping.
+                self.unmapped[sn] = state
                 continue
             self.devices[sn] = device
             states[sn] = state
@@ -145,6 +157,15 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             sn for sn, dev in self.devices.items() if dev.has_http_only_entities()
         }
         if not self.devices:
+            if self.unmapped:
+                # Everything on the account was unsupported or an excluded plug;
+                # stay set up (with no entities) rather than error-looping.
+                _LOGGER.info(
+                    "No mappable EcoFlow devices set up; %d device(s) were "
+                    "unsupported or excluded smart plugs",
+                    len(self.unmapped),
+                )
+                return
             raise UpdateFailed("no supported EcoFlow devices found")
 
         if self._enable_mqtt:

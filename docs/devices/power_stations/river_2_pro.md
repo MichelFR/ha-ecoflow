@@ -2,7 +2,7 @@
 
 <p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/river-2-pro.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/river-2-pro.png" alt="EcoFlow River 2 Pro" width="240"></picture></p>
 
-**Category:** Power Stations · **Auto-detected by SN prefix:** `R621`
+**Category:** Power Stations · **Auto-detected by SN prefix:** `R62`
 
 > Generated from `custom_components/ecoflow_iot/devices/power_stations/river_2_pro.py` by `scripts/gen_device_docs.py` — do not edit by hand.
 > Every device also exposes an always-available **Connection** diagnostic sensor (MQTT state + data source).

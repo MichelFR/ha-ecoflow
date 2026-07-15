@@ -2,7 +2,7 @@
   "issues": {
     "unsupported_device": {
       "title": "Unsupported EcoFlow device ({prefix})",
-      "description": "An EcoFlow device with serial prefix `{prefix}` is bound to your account but is not supported yet by this integration, so no entities were created for it. Only the prefix is shown for privacy. Please open an issue on the project's GitHub repository including this prefix so support can be added."
+      "description": "An EcoFlow device with serial prefix `{prefix}` is bound to your account but is not supported yet by this integration, so no entities were created for it. Only the prefix is shown for privacy. To help add support, download this integration's diagnostics (Settings → Devices & Services → EcoFlow IoT → the ⋮ menu → Download diagnostics) — they include the device's raw data under `unmapped_devices` with the serial number removed — and open an issue on the project's GitHub repository including this prefix and the attached diagnostics."
     }
   },
   "config": {
@@ -46,6 +46,7 @@
           "mqtt_stale_seconds": "MQTT staleness threshold (seconds)",
           "mqtt_refresh_interval": "MQTT active refresh interval (seconds)",
           "invert_grid_sign": "Invert Stream grid power sign",
+          "add_smart_plugs": "Add Smart Plug devices",
           "reset_grid_energy": "Reset grid import/export energy totals & history"
         },
         "data_description": {
@@ -53,6 +54,7 @@
           "mqtt_stale_seconds": "If no MQTT message arrives within this window, the integration polls HTTP.",
           "mqtt_refresh_interval": "How often to actively request a fresh data snapshot over MQTT (publishing a \"latestQuotas\" get, the same thing the EcoFlow app does). Devices slow their push rate when idle, so a passive subscription goes stale even while connected; this keeps the data flowing. Set to 0 to disable and rely only on what the device pushes plus the HTTP fallback.",
           "invert_grid_sign": "Some Stream units report grid power with the sign inverted — they show power fed into the grid as positive instead of negative, the opposite of Home Assistant's convention. This depends on the model and firmware, so it can't be detected automatically. Leave this on (the default) and the sign is corrected: Grid power reads negative while you export, and the Grid import / export energy sensors count in the right direction. Turn it off only if your unit already matches Home Assistant — i.e. exporting to the grid already shows Grid power as negative (import positive, export negative). If you change this setting, also tick \"Reset grid import/export energy totals\" below — the existing totals were built up in the wrong direction and won't correct themselves.",
+          "add_smart_plugs": "Add smart plugs (the EcoFlow Smart Plug and the EcoFlow x Shelly Plug) as devices. Off by default so plugs don't appear unless you want them. Turning this off also silences the \"unsupported device\" warning for the EcoFlow x Shelly Plug. Note the x Shelly Plug's entities are provisional — its data schema isn't documented, so some values may be missing until it's mapped from submitted diagnostics.",
           "reset_grid_energy": "One-shot action: tick this and save to fully reset the Grid import energy and Grid export energy sensors. It zeroes the live counters and deletes their recorded history and Energy Dashboard statistics, so the old wrong-direction data is gone and they start fresh from zero. Recommended after changing the sign setting above. Leave it off for normal use."
         }
       }

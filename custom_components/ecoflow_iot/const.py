@@ -17,6 +17,9 @@ CONF_MQTT_STALE_SECONDS: Final = "mqtt_stale_seconds"
 CONF_MQTT_REFRESH_INTERVAL: Final = "mqtt_refresh_interval"
 CONF_ENABLE_MQTT: Final = "enable_mqtt"
 CONF_INVERT_GRID_SIGN: Final = "invert_grid_sign"
+# Whether to add smart-plug devices (EcoFlow Smart Plug, EF x Shelly Plug).
+# Off by default so plugs don't appear unless explicitly wanted.
+CONF_ADD_SMART_PLUGS: Final = "add_smart_plugs"
 # Transient options-flow checkbox (never persisted): queues a one-shot reset of
 # the grid energy totals, applied when the entities are recreated on reload.
 CONF_RESET_GRID_ENERGY: Final = "reset_grid_energy"
@@ -75,6 +78,7 @@ MQTT_WATCHDOG_TICKS: Final = 3
 # import is positive / export is negative; users whose unit already matches HA
 # can turn this off.
 DEFAULT_INVERT_GRID_SIGN: Final = True
+DEFAULT_ADD_SMART_PLUGS: Final = False
 SET_ACK_TIMEOUT: Final = 8.0  # seconds to await an MQTT set_reply before HTTP fallback
 # How many leading SN characters identify a device type. Shown to the user for
 # unsupported devices (the full serial is never surfaced).

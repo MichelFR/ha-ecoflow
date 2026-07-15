@@ -53,6 +53,7 @@ correctly instead of raising an "unsupported device" repair.
 | `BK` (`BK0`–`BK6`, `BK11`, `BK12`) | Stream AC / AC Pro / Ultra / Ultra X / Pro / Microinverter | high (app registry) |
 | `HW51` | PowerStream | high (app registry) |
 | `HW52` | Smart Plug | high (app registry) |
+| `SM2A` | EcoFlow x Shelly Plug | medium (app `sm002` reset asset; sibling `SM3A`=`sm003`=EF x Shelly Pro3EM meter). Quota schema undocumented — entities are provisional, mirroring `HW52`. |
 | `HJ3`, `J32` | PowerOcean | high (`HJ3` docs + app registry, `J32` field-observed) |
 | `BX1` | Glacier | high (app registry) |
 | `M10` | Power Kits | high (app registry; `M20/M3H` are other products) |

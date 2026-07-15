@@ -2,7 +2,7 @@
 
 <p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/smart-home-panel-2.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/smart-home-panel-2.png" alt="EcoFlow Smart Home Panel 2" width="240"></picture></p>
 
-**Category:** Whole-Home Backup · **Auto-detected by SN prefix:** `HD31`
+**Category:** Whole-Home Backup · **Auto-detected by SN prefix:** `HD3`
 
 > Generated from `custom_components/ecoflow_iot/devices/whole_home_backup/smart_home_panel_ii.py` by `scripts/gen_device_docs.py` — do not edit by hand.
 > Every device also exposes an always-available **Connection** diagnostic sensor (MQTT state + data source).

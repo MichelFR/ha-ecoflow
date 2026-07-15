@@ -27,6 +27,7 @@ from .power_stations import (
     River2ProDevice,
 )
 from .smart_living import (
+    EfShellyPlugDevice,
     GlacierDevice,
     PowerKitsDevice,
     SmartPlugDevice,
@@ -59,6 +60,7 @@ DEVICE_REGISTRY: tuple[type[EcoFlowDevice], ...] = (
     # Home battery
     PowerOceanDevice,
     # Smart living
+    EfShellyPlugDevice,
     GlacierDevice,
     PowerKitsDevice,
     SmartPlugDevice,

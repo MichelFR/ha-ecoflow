@@ -154,6 +154,9 @@ class EcoFlowDevice:
 
     model: str = "EcoFlow Device"
     sn_prefixes: tuple[str, ...] = ()
+    # Smart plugs are gated behind an opt-in option (see CONF_ADD_SMART_PLUGS):
+    # they are excluded from setup unless the user turns them on.
+    is_smart_plug: bool = False
 
     def __init__(self, sn: str) -> None:
         """Bind the device to a serial number."""
