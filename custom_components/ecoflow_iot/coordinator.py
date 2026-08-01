@@ -59,6 +59,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         stale_seconds: int = DEFAULT_MQTT_STALE_SECONDS,
         refresh_interval: int = DEFAULT_MQTT_REFRESH_INTERVAL,
         enable_mqtt: bool = True,
+        insecure_tls: bool = False,
     ) -> None:
         """Initialise the coordinator (call :meth:`async_setup` next)."""
         super().__init__(
@@ -73,6 +74,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
         self._refresh_interval = refresh_interval
         self._refresh_unsub: Callable[[], None] | None = None
         self._enable_mqtt = enable_mqtt
+        self._insecure_tls = insecure_tls
         self._mqtt: EcoFlowMqttClient | None = None
         self._cert: Certification | None = None
         # MQTT silence watchdog: consecutive ticks with the connection up but
@@ -185,6 +187,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             on_state_change=self._handle_state_change,
             on_auth_failure=self._async_refresh_certification,
             client_suffix=self.config_entry.entry_id,
+            insecure_tls=self._insecure_tls,
         )
         await self._mqtt.async_connect()
         self._schedule_active_refresh()

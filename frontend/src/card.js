@@ -9,7 +9,7 @@
 
 import { LitElement, html, svg } from "lit";
 import { CARD_TYPE, assetUrl } from "./const.js";
-import { deviceImageUrl, imageUrlForKey, webpVariant } from "./device-image.js";
+import { deviceImageUrl, imageUrlForKey } from "./device-image.js";
 import { entityMap, relevantStatesChanged, streamDevices } from "./entities.js";
 import {
   fetchHourlyWh,
@@ -572,14 +572,7 @@ export class EcoFlowEnergyCard extends LitElement {
           </div>`
         : ""}
       ${showImg
-        ? html`<picture
-            >${webpVariant(imageSrc)
-              ? html`<source
-                  srcset=${webpVariant(imageSrc)}
-                  type="image/webp"
-                />`
-              : ""}<img class="device-img" src="${imageSrc}" alt="${name}"
-          /></picture>`
+        ? html`<img class="device-img" src="${imageSrc}" alt="${name}" />`
         : socState
           ? html`<ha-state-icon
               class="batt-icon"
@@ -652,11 +645,7 @@ export class EcoFlowEnergyCard extends LitElement {
     return html`<div class="batt-detail">
       <div class="batt-hero">
         ${imageSrc
-          ? html`<picture
-              >${webpVariant(imageSrc)
-                ? html`<source srcset=${webpVariant(imageSrc)} type="image/webp" />`
-                : ""}<img class="batt-hero-img" src=${imageSrc} alt=${name}
-            /></picture>`
+          ? html`<img class="batt-hero-img" src=${imageSrc} alt=${name} />`
           : html`<ha-icon class="batt-hero-img" icon="mdi:home-battery"></ha-icon>`}
         <div class="batt-hero-info">
           <span class="batt-hero-pct"

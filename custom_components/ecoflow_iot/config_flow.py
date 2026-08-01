@@ -31,6 +31,7 @@ from .const import (
     CONF_ACCESS_KEY,
     CONF_ENABLE_MQTT,
     CONF_INVERT_GRID_SIGN,
+    CONF_MQTT_INSECURE_TLS,
     CONF_MQTT_REFRESH_INTERVAL,
     CONF_MQTT_STALE_SECONDS,
     CONF_POLL_INTERVAL,
@@ -40,6 +41,7 @@ from .const import (
     DATA_RESET_ENERGY_IDS,
     DEFAULT_ENABLE_MQTT,
     DEFAULT_INVERT_GRID_SIGN,
+    DEFAULT_MQTT_INSECURE_TLS,
     DEFAULT_MQTT_REFRESH_INTERVAL,
     DEFAULT_MQTT_STALE_SECONDS,
     DEFAULT_POLL_INTERVAL,
@@ -213,6 +215,12 @@ class EcoFlowOptionsFlow(OptionsFlow):
                         min=0, max=600, step=5, mode=NumberSelectorMode.BOX
                     )
                 ),
+                vol.Required(
+                    CONF_MQTT_INSECURE_TLS,
+                    default=options.get(
+                        CONF_MQTT_INSECURE_TLS, DEFAULT_MQTT_INSECURE_TLS
+                    ),
+                ): bool,
                 vol.Required(
                     CONF_INVERT_GRID_SIGN,
                     default=options.get(

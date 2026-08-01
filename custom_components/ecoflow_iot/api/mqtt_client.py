@@ -13,12 +13,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import ssl
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import paho.mqtt.client as mqtt
+
+from homeassistant.util.ssl import client_context, client_context_no_verify
 
 from ..const import (
     TOPIC_GET,
@@ -58,12 +59,14 @@ class EcoFlowMqttClient:
         on_state_change: StateCallback,
         on_auth_failure: AuthFailureCallback | None = None,
         client_suffix: str = "",
+        insecure_tls: bool = False,
     ) -> None:
         """Configure (but do not yet connect) the client."""
         self._hass = hass
         self._loop = hass.loop
         self._cert = certification
         self._device_sns = list(device_sns)
+        self._insecure_tls = insecure_tls
         self._on_quota = on_quota
         self._on_status = on_status
         self._on_state_change = on_state_change
@@ -111,11 +114,15 @@ class EcoFlowMqttClient:
             client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
         client.username_pw_set(self._cert.account, self._cert.password)
 
-        context = ssl.create_default_context()
-        # EcoFlow's broker cert chain is not always verifiable from HA hosts.
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        client.tls_set_context(context)
+        if self._insecure_tls:
+            _LOGGER.warning(
+                "EcoFlow MQTT: TLS certificate verification is disabled by the "
+                "integration's insecure-TLS option; the broker connection is "
+                "not protected against interception"
+            )
+            client.tls_set_context(client_context_no_verify())
+        else:
+            client.tls_set_context(client_context())
 
         client.on_connect = self._on_connect
         client.on_disconnect = self._on_disconnect

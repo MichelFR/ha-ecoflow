@@ -65,7 +65,7 @@ IMAGE_MATCHES = [
 def image_key(model: str):
     """Bundled image key for a model, if such an image exists, else None."""
     for pat, key in IMAGE_MATCHES:
-        if re.search(pat, model, re.I) and (WWW_DEVICES / f"{key}.png").exists():
+        if re.search(pat, model, re.I) and (WWW_DEVICES / f"{key}.webp").exists():
             return key
     return None
 
@@ -213,10 +213,9 @@ def render_device(cls, category) -> str:
     img = image_key(name)
     img_base = f"../../../custom_components/ecoflow_iot/www/devices/{img}"
     img_md = (
-        f'<p align="center"><picture>'
-        f'<source srcset="{img_base}.webp" type="image/webp">'
-        f'<img src="{img_base}.png" alt="{name}" width="240">'
-        f"</picture></p>"
+        f'<p align="center">'
+        f'<img src="{img_base}.webp" alt="{name}" width="240">'
+        f"</p>"
     )
 
     lines = [

@@ -1,6 +1,6 @@
 # EcoFlow Power Kits
 
-<p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/power-kits.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/power-kits.png" alt="EcoFlow Power Kits" width="240"></picture></p>
+<p align="center"><img src="../../../custom_components/ecoflow_iot/www/devices/power-kits.webp" alt="EcoFlow Power Kits" width="240"></p>
 
 **Category:** Smart Living · **Auto-detected by SN prefix:** `M10`
 

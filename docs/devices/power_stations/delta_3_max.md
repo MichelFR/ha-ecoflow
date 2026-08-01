@@ -1,6 +1,6 @@
 # EcoFlow Delta 3 Max
 
-<p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/delta-3-max.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/delta-3-max.png" alt="EcoFlow Delta 3 Max" width="240"></picture></p>
+<p align="center"><img src="../../../custom_components/ecoflow_iot/www/devices/delta-3-max.webp" alt="EcoFlow Delta 3 Max" width="240"></p>
 
 **Category:** Power Stations · **Auto-detected by SN prefix:** `D3N`, `D3M`
 

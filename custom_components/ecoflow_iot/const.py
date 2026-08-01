@@ -16,6 +16,7 @@ CONF_POLL_INTERVAL: Final = "poll_interval"
 CONF_MQTT_STALE_SECONDS: Final = "mqtt_stale_seconds"
 CONF_MQTT_REFRESH_INTERVAL: Final = "mqtt_refresh_interval"
 CONF_ENABLE_MQTT: Final = "enable_mqtt"
+CONF_MQTT_INSECURE_TLS: Final = "mqtt_insecure_tls"
 CONF_INVERT_GRID_SIGN: Final = "invert_grid_sign"
 # Transient options-flow checkbox (never persisted): queues a one-shot reset of
 # the grid energy totals, applied when the entities are recreated on reload.
@@ -64,6 +65,7 @@ DEFAULT_MQTT_STALE_SECONDS: Final = 120  # consider MQTT stale after this many s
 # passive subscriber sees data go stale even while the connection stays up.
 DEFAULT_MQTT_REFRESH_INTERVAL: Final = 20  # seconds
 DEFAULT_ENABLE_MQTT: Final = True
+DEFAULT_MQTT_INSECURE_TLS: Final = False
 # Consecutive poll ticks with the MQTT connection nominally CONNECTED but every
 # device stale before the coordinator force-reconnects the broker session. A
 # connection can claim to be up while delivering nothing (broker-side

@@ -36,20 +36,7 @@ export const DEVICE_IMAGES = [
 
 export function imageUrlForKey(key) {
   return DEVICE_IMAGES.some((d) => d.key === key)
-    ? `${ASSET_BASE}/devices/${key}.png`
-    : null;
-}
-
-/* The WebP variant of a bundled device PNG (served via <picture> with the PNG
- * as fallback), or null for non-bundled / custom image URLs. Matches on a
- * substring rather than a prefix so it still recognises our bundled images once
- * assetUrl() has rebased them to an absolute instance URL (Home Assistant
- * Cast). */
-export function webpVariant(url) {
-  return typeof url === "string" &&
-    url.includes(`${ASSET_BASE}/`) &&
-    url.endsWith(".png")
-    ? `${url.slice(0, -4)}.webp`
+    ? `${ASSET_BASE}/devices/${key}.webp`
     : null;
 }
 

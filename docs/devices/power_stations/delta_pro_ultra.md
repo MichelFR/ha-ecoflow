@@ -1,6 +1,6 @@
 # EcoFlow Delta Pro Ultra
 
-<p align="center"><picture><source srcset="../../../custom_components/ecoflow_iot/www/devices/delta-pro-ultra.webp" type="image/webp"><img src="../../../custom_components/ecoflow_iot/www/devices/delta-pro-ultra.png" alt="EcoFlow Delta Pro Ultra" width="240"></picture></p>
+<p align="center"><img src="../../../custom_components/ecoflow_iot/www/devices/delta-pro-ultra.webp" alt="EcoFlow Delta Pro Ultra" width="240"></p>
 
 **Category:** Power Stations · **Auto-detected by SN prefix:** `Y71`
 

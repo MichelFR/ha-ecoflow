@@ -21,6 +21,18 @@ def install_stubs() -> None:
     sys.modules["paho.mqtt"] = paho_mqtt
     sys.modules["paho.mqtt.client"] = client
 
+    if "homeassistant" not in sys.modules:
+        ha = types.ModuleType("homeassistant")
+        ha.__path__ = []
+        util = types.ModuleType("homeassistant.util")
+        util.__path__ = []
+        ha_ssl = types.ModuleType("homeassistant.util.ssl")
+        ha_ssl.client_context = lambda *a, **kw: None
+        ha_ssl.client_context_no_verify = lambda *a, **kw: None
+        sys.modules["homeassistant"] = ha
+        sys.modules["homeassistant.util"] = util
+        sys.modules["homeassistant.util.ssl"] = ha_ssl
+
     root = Path(__file__).resolve().parents[1] / "custom_components"
     pkg = types.ModuleType("ecoflow_iot")
     pkg.__path__ = [str(root / "ecoflow_iot")]
