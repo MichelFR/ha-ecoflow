@@ -13,20 +13,26 @@ import {
   WEATHER_HUMIDITY_COLOR,
   WEATHER_TEMP_COLOR,
 } from "./space-card.js";
+import {
+  editorStyles,
+  renderBatteryGallery,
+  renderGridSourceSelect,
+  renderHouseGallery,
+  renderModeButtons,
+  renderNav,
+  renderSelect,
+  renderSubpageHead,
+  renderToggle,
+} from "./editor-common.js";
 import { isEntityId, isTemplate } from "./format.js";
 import { ensureHaComponents } from "./ha-components.js";
 import { localize } from "./localize.js";
 import { panelsSummary, renderPanelsEditorPage } from "./views/panels-editor.js";
 import {
-  BATTERY_BOXES,
   DEFAULT_BATTERY,
   DEFAULT_HOUSE_MODE,
   DEFAULT_HOUSE_STYLE,
-  HOUSE_MODES,
-  HOUSE_STYLES,
-  batteryBoxUrl,
   houseImageUrl,
-  housePreviewUrl,
 } from "./houses.js";
 
 const DEVICE_SCHEMA = [
@@ -134,18 +140,12 @@ export class EcoFlowSpaceCardEditor extends LitElement {
         .computeLabel=${() => this._t("editor.device")}
         @value-changed=${this._deviceChanged}
       ></ha-form>
-      <div class="nav">
-        ${PAGES.map(
-          (page) => html`<button class="nav-row" @click=${() => (this._page = page.id)}>
-            <ha-icon class="nav-icon" icon=${page.icon}></ha-icon>
-            <span class="nav-labels">
-              <span class="nav-label">${this._t(`space.page.${page.id}`)}</span>
-              <span class="nav-secondary">${this._summary(page.id)}</span>
-            </span>
-            <ha-icon icon="mdi:chevron-right"></ha-icon>
-          </button>`
-        )}
-      </div>`;
+      ${renderNav(
+        this,
+        PAGES,
+        (id) => this._t(`space.page.${id}`),
+        (id) => this._summary(id)
+      )}`;
   }
 
   _summary(pageId) {
@@ -178,12 +178,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
   }
 
   _renderSubpage(page) {
-    return html`<div class="subpage-head">
-        <button class="back" @click=${() => (this._page = null)}>
-          <ha-icon icon="mdi:chevron-left"></ha-icon>
-        </button>
-        <span class="subpage-title">${this._t(`space.page.${page.id}`)}</span>
-      </div>
+    return html`${renderSubpageHead(this, this._t(`space.page.${page.id}`))}
       ${page.id === "appearance"
         ? this._renderAppearance()
         : page.id === "weather"
@@ -208,71 +203,31 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     return html`<div class="section">
         <ha-icon icon="mdi:home-outline"></ha-icon>${this._t("house.editor.style")}
       </div>
-      <div class="grid">
-        ${HOUSE_STYLES.map(
-          (key) => html`<button
-            class="opt ${style === key ? "on" : ""}"
-            @click=${() => this._set("house", key, DEFAULT_HOUSE_STYLE)}
-          >
-            <img src=${housePreviewUrl(key, this.hass)} loading="lazy" alt=${key} />
-          </button>`
-        )}
-      </div>
+      ${renderHouseGallery(this, style, (key) =>
+        this._set("house", key, DEFAULT_HOUSE_STYLE)
+      )}
 
       <div class="section">
         <ha-icon icon="mdi:theme-light-dark"></ha-icon>${this._t("house.editor.mode")}
       </div>
-      <div class="modes">
-        ${HOUSE_MODES.map(
-          (m) => html`<button
-            class="mode ${mode === m ? "on" : ""}"
-            @click=${() => this._set("house_mode", m, DEFAULT_HOUSE_MODE)}
-          >
-            ${this._t(`house.mode.${m}`)}
-          </button>`
-        )}
-      </div>
+      ${renderModeButtons(this, mode, (m) =>
+        this._set("house_mode", m, DEFAULT_HOUSE_MODE)
+      )}
 
       <div class="section">
         <ha-icon icon="mdi:home-battery-outline"></ha-icon>${this._t("house.editor.battery")}
       </div>
-      <div class="grid small">
-        ${BATTERY_BOXES.map(
-          (key) => html`<button
-            class="opt ${battery === key ? "on" : ""}"
-            title=${this._t(`house.battery.${key}`)}
-            @click=${() => this._set("battery", key, DEFAULT_BATTERY)}
-          >
-            <span
-              class="batt-thumb"
-              style=${`background-image:url(${batteryBoxUrl(key, this.hass)})`}
-            ></span>
-          </button>`
-        )}
-      </div>
+      ${renderBatteryGallery(this, battery, (key) =>
+        this._set("battery", key, DEFAULT_BATTERY)
+      )}
 
       <div class="section">
         <ha-icon icon="mdi:eye-outline"></ha-icon>${this._t("house.page.display")}
       </div>
-      ${TOGGLES.map(([key, def, icon]) => this._renderToggle(key, def, icon))}
-      ${this._selectField(
-        this._t("editor.grid_source"),
-        ["app", "device"],
-        this._config.grid_source || "app",
-        (v) => this._set("grid_source", v, "app"),
-        (k) => this._t(`editor.grid_source_${k}`)
-      )}`;
-  }
-
-  _renderToggle(key, def, icon) {
-    return html`<div class="row">
-      <ha-icon icon=${icon}></ha-icon>
-      <span class="row-label">${this._t(`house.toggle.${key}`)}</span>
-      <ha-switch
-        .checked=${this._config[key] ?? def}
-        @change=${(ev) => this._set(key, ev.target.checked, def)}
-      ></ha-switch>
-    </div>`;
+      ${TOGGLES.map(([key, def, icon]) =>
+        renderToggle(this, this._t(`house.toggle.${key}`), key, def, icon)
+      )}
+      ${renderGridSourceSelect(this)}`;
   }
 
   /* -- weather -- */
@@ -414,7 +369,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
             ${this._colorField(this._t("space.f_dot"), ov.dot, (v) =>
               this._updateItem("overlays", i, { dot: v })
             )}
-            ${this._selectField(
+            ${renderSelect(this,
               this._t("space.f_anchor"),
               ANCHOR_OPTIONS,
               ov.anchor || "center",
@@ -441,7 +396,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
    * any explicit source so it auto-binds; choosing None leaves it custom. */
   _renderPresetField(listKey, item, i, presets) {
     const options = ["", ...Object.keys(presets)];
-    return html`${this._selectField(
+    return html`${renderSelect(this,
         this._t("space.f_preset"),
         options,
         item.preset || "",
@@ -486,7 +441,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
         )}
       </div>
       ${mode === "auto"
-        ? this._selectField(
+        ? renderSelect(this,
             this._t("space.f_slot"),
             SLOT_OPTIONS,
             item.slot || SLOT_OPTIONS[0],
@@ -615,7 +570,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
           @change=${(ev) => this._set("rail_labels", ev.target.checked, false)}
         ></ha-switch>
       </div>
-      ${this._selectField(
+      ${renderSelect(this,
         this._t("space.rail_align"),
         ["start", "center", "end"],
         this._config.rail_align || "start",
@@ -820,23 +775,6 @@ export class EcoFlowSpaceCardEditor extends LitElement {
     ></ha-form>`;
   }
 
-  /* A dropdown via ha-form's select selector — reliable value binding (a raw
-   * ha-select's @selected/index is flaky on re-render). */
-  _selectField(label, options, value, onChange, labelFn) {
-    const opts = options.map((o) => ({ value: o, label: labelFn ? labelFn(o) : o || "—" }));
-    return html`<ha-form
-      class="field"
-      .hass=${this.hass}
-      .data=${{ value }}
-      .schema=${[{ name: "value", selector: { select: { options: opts, mode: "dropdown" } } }]}
-      .computeLabel=${() => label}
-      @value-changed=${(ev) => {
-        ev.stopPropagation();
-        onChange(ev.detail.value.value ?? "");
-      }}
-    ></ha-form>`;
-  }
-
   /* -- drag-to-position -- */
 
   _onDragStart(ev, id) {
@@ -922,187 +860,9 @@ export class EcoFlowSpaceCardEditor extends LitElement {
   }
 
   static get styles() {
-    return css`
-      .nav {
-        display: flex;
-        flex-direction: column;
-        margin-top: 16px;
-      }
-      .nav-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        border: none;
-        background: transparent;
-        padding: 12px 6px;
-        cursor: pointer;
-        text-align: left;
-        border-radius: 10px;
-        color: var(--primary-text-color);
-      }
-      .nav-row:hover {
-        background: var(--secondary-background-color);
-      }
-      .nav-row ha-icon {
-        color: var(--secondary-text-color);
-        --mdc-icon-size: 20px;
-      }
-      .nav-labels {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .nav-secondary {
-        font-size: 0.85em;
-        color: var(--secondary-text-color);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 280px;
-      }
-      .subpage-head {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: var(--card-background-color, var(--ha-card-background));
-        padding: 8px 0;
-        margin-top: -8px;
-      }
-      .back {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        background: transparent;
-        color: var(--primary-text-color);
-        cursor: pointer;
-        border-radius: 50%;
-        width: 36px;
-        height: 36px;
-      }
-      .back:hover {
-        background: var(--secondary-background-color);
-      }
-      .subpage-title {
-        font-size: 1.1em;
-        font-weight: 600;
-      }
-      .section {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 600;
-        margin: 18px 0 8px;
-      }
-      .section ha-icon {
-        --mdc-icon-size: 18px;
-        color: var(--secondary-text-color);
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-        gap: 8px;
-      }
-      .grid.small {
-        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-      }
-      .opt {
-        border: 2px solid transparent;
-        border-radius: 12px;
-        background: var(--secondary-background-color);
-        padding: 4px;
-        cursor: pointer;
-      }
-      .opt.on {
-        border-color: var(--primary-color);
-      }
-      .opt img {
-        width: 100%;
-        aspect-ratio: 2340 / 1680;
-        object-fit: contain;
-        border-radius: 6px;
-      }
-      .batt-thumb {
-        display: block;
-        width: 100%;
-        aspect-ratio: 1 / 1;
-        border-radius: 8px;
-        background-repeat: no-repeat;
-        background-position: center 58%;
-        background-size: 200%;
-      }
-      .modes {
-        display: flex;
-        background: var(--secondary-background-color);
-        border-radius: 10px;
-        padding: 3px;
-      }
-      .mode {
-        flex: 1;
-        border: none;
-        background: transparent;
-        color: var(--primary-text-color);
-        padding: 9px 0;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.9em;
-      }
-      .mode.on {
-        background: var(--primary-color);
-        color: var(--text-primary-color, #fff);
-        font-weight: 600;
-      }
-      .row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 4px;
-      }
-      .row ha-icon {
-        --mdc-icon-size: 20px;
-        color: var(--secondary-text-color);
-      }
-      .row-label {
-        flex: 1;
-      }
-      .hint {
-        color: var(--secondary-text-color);
-        font-size: 0.85em;
-        margin: 4px 4px 10px;
-      }
-      .top-hint {
-        margin: 0 4px 12px;
-      }
-      /* per-panel blocks (shared views/panels-editor.js) */
-      .panel-block {
-        padding: 6px 4px 12px;
-        border-bottom: 1px solid var(--divider-color);
-      }
-      .panel-title-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 6px 0;
-      }
-      .panel-title-row ha-icon {
-        --mdc-icon-size: 20px;
-        color: var(--energy-solar-color, #ff9800);
-      }
-      .panel-title {
-        flex: 1;
-        font-weight: 600;
-        color: var(--primary-text-color);
-      }
-      .panel-block ha-form {
-        display: block;
-        margin-bottom: 12px;
-      }
-
+    return [
+      editorStyles,
+      css`
       /* drag preview */
       .preview {
         position: relative;
@@ -1204,9 +964,6 @@ export class EcoFlowSpaceCardEditor extends LitElement {
         gap: 10px;
         padding: 4px 12px 14px;
       }
-      .field {
-        width: 100%;
-      }
       .color-field {
         display: flex;
         align-items: center;
@@ -1281,6 +1038,7 @@ export class EcoFlowSpaceCardEditor extends LitElement {
       .del-btn ha-icon {
         --mdc-icon-size: 18px;
       }
-    `;
+      `,
+    ];
   }
 }

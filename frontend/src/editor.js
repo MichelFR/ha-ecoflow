@@ -6,6 +6,13 @@
 
 import { LitElement, html, css } from "lit";
 import { CARD_TYPE, PLATFORM } from "./const.js";
+import {
+  editorStyles,
+  renderGridSourceSelect,
+  renderNav,
+  renderSubpageHead,
+  renderToggle,
+} from "./editor-common.js";
 import { entityMap, streamDevices } from "./entities.js";
 import { brandIconUrl } from "./brands.js";
 import { DEVICE_IMAGES, imageUrlForKey } from "./device-image.js";
@@ -76,6 +83,7 @@ export class EcoFlowEnergyCardEditor extends LitElement {
 
   constructor() {
     super();
+    this._config = {}; // HA may render (after .hass) before setConfig runs
     this._page = null; // null = root, otherwise a PAGES id
     this._modes = {}; // slot key -> "auto" | "entity" | "custom" (UI state)
     this._providers = undefined; // forecast config entries (loaded async)
@@ -131,21 +139,12 @@ export class EcoFlowEnergyCardEditor extends LitElement {
         .computeLabel=${() => this._t("editor.device")}
         @value-changed=${this._valueChanged}
       ></ha-form>
-      <div class="nav">
-        ${PAGES.map(
-          (page) => html`<button
-            class="nav-row"
-            @click=${() => (this._page = page.id)}
-          >
-            <ha-icon class="nav-icon" icon=${page.icon}></ha-icon>
-            <span class="nav-labels">
-              <span class="nav-label">${this._t(`page.${page.id}`)}</span>
-              <span class="nav-secondary">${this._summary(page.id)}</span>
-            </span>
-            <ha-icon icon="mdi:chevron-right"></ha-icon>
-          </button>`
-        )}
-      </div>`;
+      ${renderNav(
+        this,
+        PAGES,
+        (id) => this._t(`page.${id}`),
+        (id) => this._summary(id)
+      )}`;
   }
 
   _summary(pageId) {
@@ -194,17 +193,12 @@ export class EcoFlowEnergyCardEditor extends LitElement {
   /* -- subpages -- */
 
   _renderSubpage(page) {
-    return html`<div class="subpage-head">
-        <button class="back" @click=${() => (this._page = null)}>
-          <ha-icon icon="mdi:chevron-left"></ha-icon>
-        </button>
-        <span class="subpage-title">${this._t(`page.${page.id}`)}</span>
-      </div>
+    return html`${renderSubpageHead(this, this._t(`page.${page.id}`))}
       ${(TOGGLES[page.id] || []).map(([key, def, icon]) =>
-        this._renderToggle(key, def, icon)
+        renderToggle(this, this._t(`toggle.${key}`), key, def, icon)
       )}
       ${page.id === "appearance"
-        ? html`${this._renderGridSource()}${this._renderImagePicker()}`
+        ? html`${renderGridSourceSelect(this)}${this._renderImagePicker()}`
         : page.id === "stats"
           ? this._renderStatsPage()
           : page.id === "panels"
@@ -216,29 +210,6 @@ export class EcoFlowEnergyCardEditor extends LitElement {
                 : (PAGE_SLOTS[page.id] || []).map(([key, icon]) =>
                     this._renderSlot(key, icon)
                   )}`;
-  }
-
-  _renderGridSource() {
-    const options = ["app", "device"].map((v) => ({
-      value: v,
-      label: this._t(`editor.grid_source_${v}`),
-    }));
-    return html`<ha-form
-      .hass=${this.hass}
-      .data=${{ value: this._config.grid_source || "app" }}
-      .schema=${[
-        { name: "value", selector: { select: { options, mode: "dropdown" } } },
-      ]}
-      .computeLabel=${() => this._t("editor.grid_source")}
-      @value-changed=${(ev) => {
-        ev.stopPropagation();
-        const config = { ...this._config, type: `custom:${CARD_TYPE}` };
-        const v = ev.detail.value.value;
-        if (!v || v === "app") delete config.grid_source;
-        else config.grid_source = v;
-        this._dispatch(config);
-      }}
-    ></ha-form>`;
   }
 
   /* -- appearance: device-image picker (Auto + bundled options) -- */
@@ -581,17 +552,6 @@ export class EcoFlowEnergyCardEditor extends LitElement {
     return config;
   }
 
-  _renderToggle(key, def, icon) {
-    return html`<div class="row">
-      <ha-icon icon=${icon}></ha-icon>
-      <span class="row-label">${this._t(`toggle.${key}`)}</span>
-      <ha-switch
-        .checked=${this._config[key] ?? def}
-        @change=${(ev) => this._toggleDisplay(key, def, ev.target.checked)}
-      ></ha-switch>
-    </div>`;
-  }
-
   /* -- slot editors: Automatic / Entity / Custom -- */
 
   _slotMode(key, override) {
@@ -678,11 +638,11 @@ export class EcoFlowEnergyCardEditor extends LitElement {
     this._dispatch(this._withOverride(key, value));
   }
 
-  _toggleDisplay(key, def, checked) {
+  _set(key, value, def) {
     const config = { ...this._config, type: `custom:${CARD_TYPE}` };
     // Only persist deviations from the option's default.
-    if (checked === def) delete config[key];
-    else config[key] = checked;
+    if (value === def || value === "" || value == null) delete config[key];
+    else config[key] = value;
     this._dispatch(config);
   }
 
@@ -709,104 +669,9 @@ export class EcoFlowEnergyCardEditor extends LitElement {
   }
 
   static get styles() {
-    return css`
-      .nav {
-        display: flex;
-        flex-direction: column;
-        margin-top: 16px;
-      }
-      .nav-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        border: none;
-        background: transparent;
-        padding: 12px 6px;
-        cursor: pointer;
-        text-align: left;
-        border-radius: 10px;
-        color: var(--primary-text-color);
-        transition: background-color 0.15s ease;
-      }
-      .nav-row:hover {
-        background: var(--secondary-background-color);
-      }
-      .nav-row ha-icon {
-        color: var(--secondary-text-color);
-        --mdc-icon-size: 20px;
-      }
-      .nav-labels {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .nav-label {
-        font-size: 1em;
-      }
-      .nav-secondary {
-        font-size: 0.85em;
-        color: var(--secondary-text-color);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 280px;
-      }
-      .subpage-head {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        background: var(--card-background-color, var(--ha-card-background));
-        padding: 8px 0;
-        margin-top: -8px;
-      }
-      .back {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: none;
-        background: transparent;
-        color: var(--primary-text-color);
-        cursor: pointer;
-        border-radius: 50%;
-        width: 36px;
-        height: 36px;
-        transition: background-color 0.15s ease;
-      }
-      .back:hover {
-        background: var(--secondary-background-color);
-      }
-      .subpage-title {
-        font-size: 1.1em;
-        font-weight: 600;
-      }
-      .row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 10px 4px;
-      }
-      .row ha-icon {
-        --mdc-icon-size: 20px;
-        color: var(--secondary-text-color);
-      }
-      .row-label {
-        flex: 1;
-        color: var(--primary-text-color);
-      }
-      .row-sub {
-        display: block;
-        font-size: 0.8em;
-        color: var(--secondary-text-color);
-      }
-      .dim {
-        opacity: 0.45;
-        pointer-events: none;
-      }
+    return [
+      editorStyles,
+      css`
       .provider-icon {
         position: relative;
         width: 24px;
@@ -875,70 +740,8 @@ export class EcoFlowEnergyCardEditor extends LitElement {
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .section {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: 600;
-        margin: 18px 0 8px;
-        color: var(--primary-text-color);
-      }
-      .section ha-icon {
-        --mdc-icon-size: 18px;
-        color: var(--secondary-text-color);
-      }
       .modes {
-        display: flex;
-        background: var(--secondary-background-color);
-        border-radius: 10px;
-        padding: 3px;
         margin-bottom: 10px;
-      }
-      .mode {
-        flex: 1;
-        border: none;
-        background: transparent;
-        color: var(--primary-text-color);
-        padding: 8px 0;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.9em;
-        transition: background-color 0.15s ease, color 0.15s ease;
-      }
-      .mode:hover:not(.on) {
-        background: rgba(127, 127, 127, 0.18);
-      }
-      .mode.on {
-        background: var(--primary-color);
-        color: var(--text-primary-color, #fff);
-        font-weight: 600;
-      }
-      .hint {
-        color: var(--secondary-text-color);
-        font-size: 0.85em;
-        margin: 4px 4px 12px;
-      }
-      .top-hint {
-        margin: 0 4px 10px;
-      }
-      .panel-block {
-        padding: 6px 4px 12px;
-        border-bottom: 1px solid var(--divider-color);
-      }
-      .panel-title-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 6px 0;
-      }
-      .panel-title-row ha-icon {
-        --mdc-icon-size: 20px;
-        color: var(--energy-solar-color, #ff9800);
-      }
-      .panel-title {
-        flex: 1;
-        font-weight: 600;
-        color: var(--primary-text-color);
       }
       ha-form {
         display: block;
@@ -1026,6 +829,7 @@ export class EcoFlowEnergyCardEditor extends LitElement {
       .text-btn:hover {
         background: color-mix(in srgb, var(--primary-color) 10%, transparent);
       }
-    `;
+      `,
+    ];
   }
 }
