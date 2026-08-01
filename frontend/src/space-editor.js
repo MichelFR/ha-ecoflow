@@ -254,7 +254,14 @@ export class EcoFlowSpaceCardEditor extends LitElement {
       <div class="section">
         <ha-icon icon="mdi:eye-outline"></ha-icon>${this._t("house.page.display")}
       </div>
-      ${TOGGLES.map(([key, def, icon]) => this._renderToggle(key, def, icon))}`;
+      ${TOGGLES.map(([key, def, icon]) => this._renderToggle(key, def, icon))}
+      ${this._selectField(
+        this._t("editor.grid_source"),
+        ["app", "device"],
+        this._config.grid_source || "app",
+        (v) => this._set("grid_source", v, "app"),
+        (k) => this._t(`editor.grid_source_${k}`)
+      )}`;
   }
 
   _renderToggle(key, def, icon) {

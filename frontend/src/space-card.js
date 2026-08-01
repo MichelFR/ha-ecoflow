@@ -375,6 +375,7 @@ export class EcoFlowSpaceCard extends LitElement {
     if (!this._device) {
       return deriveFlowStates({ grid: -400, solar: 1500, load: 700, bat: 500, soc: 65, backup: 20, loadFromPv: 700, route });
     }
+    const deviceGrid = this._config.grid_source === "device";
     return deriveFlowStates({
       grid: this._grid(),
       solar: numState(this._slotState(SLOT_SOLAR)),
@@ -382,9 +383,9 @@ export class EcoFlowSpaceCard extends LitElement {
       bat: numState(this._slotState(SLOT_BAT)),
       soc: numState(this._slotState(SLOT_SOC)),
       backup: numState(this._slotState(SLOT_BACKUP)),
-      loadFromGrid: numState(this._slotState(SLOT_LOAD_FROM_GRID)),
-      loadFromPv: numState(this._slotState(SLOT_LOAD_FROM_PV)),
-      loadFromBat: numState(this._slotState(SLOT_LOAD_FROM_BAT)),
+      loadFromGrid: deviceGrid ? null : numState(this._slotState(SLOT_LOAD_FROM_GRID)),
+      loadFromPv: deviceGrid ? null : numState(this._slotState(SLOT_LOAD_FROM_PV)),
+      loadFromBat: deviceGrid ? null : numState(this._slotState(SLOT_LOAD_FROM_BAT)),
       route,
     });
   }

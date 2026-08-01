@@ -204,7 +204,7 @@ export class EcoFlowEnergyCardEditor extends LitElement {
         this._renderToggle(key, def, icon)
       )}
       ${page.id === "appearance"
-        ? this._renderImagePicker()
+        ? html`${this._renderGridSource()}${this._renderImagePicker()}`
         : page.id === "stats"
           ? this._renderStatsPage()
           : page.id === "panels"
@@ -216,6 +216,29 @@ export class EcoFlowEnergyCardEditor extends LitElement {
                 : (PAGE_SLOTS[page.id] || []).map(([key, icon]) =>
                     this._renderSlot(key, icon)
                   )}`;
+  }
+
+  _renderGridSource() {
+    const options = ["app", "device"].map((v) => ({
+      value: v,
+      label: this._t(`editor.grid_source_${v}`),
+    }));
+    return html`<ha-form
+      .hass=${this.hass}
+      .data=${{ value: this._config.grid_source || "app" }}
+      .schema=${[
+        { name: "value", selector: { select: { options, mode: "dropdown" } } },
+      ]}
+      .computeLabel=${() => this._t("editor.grid_source")}
+      @value-changed=${(ev) => {
+        ev.stopPropagation();
+        const config = { ...this._config, type: `custom:${CARD_TYPE}` };
+        const v = ev.detail.value.value;
+        if (!v || v === "app") delete config.grid_source;
+        else config.grid_source = v;
+        this._dispatch(config);
+      }}
+    ></ha-form>`;
   }
 
   /* -- appearance: device-image picker (Auto + bundled options) -- */

@@ -123,6 +123,9 @@
   "editor": {
     "device": "EcoFlow-Gerät",
     "automatic": "Automatisch",
+    "grid_source": "Netzwert",
+    "grid_source_app": "Realer Netzwert (wie in der EcoFlow-App)",
+    "grid_source_device": "EcoFlow-Netzsensor (to grid)",
     "image": "Gerätebild",
     "entity": "Entität",
     "value_template": "Wert / Vorlage",

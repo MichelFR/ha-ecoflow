@@ -165,6 +165,7 @@ export class EcoFlowHouseCard extends LitElement {
       return deriveFlowStates({ grid: -400, solar: 1500, load: 700, bat: 500, soc: 65, backup: 20, loadFromPv: 700, route });
     }
 
+    const deviceGrid = this._config.grid_source === "device";
     return deriveFlowStates({
       grid: this._grid(),
       solar: numState(this._state("sensor.pv_total")),
@@ -172,9 +173,9 @@ export class EcoFlowHouseCard extends LitElement {
       bat: numState(this._state("sensor.bat_power")),
       soc: numState(this._state("sensor.cms_batt_soc")),
       backup: numState(this._state("number.backup_reserve")),
-      loadFromGrid: numState(this._state("sensor.load_from_grid")),
-      loadFromPv: numState(this._state("sensor.load_from_pv")),
-      loadFromBat: numState(this._state("sensor.load_from_bat")),
+      loadFromGrid: deviceGrid ? null : numState(this._state("sensor.load_from_grid")),
+      loadFromPv: deviceGrid ? null : numState(this._state("sensor.load_from_pv")),
+      loadFromBat: deviceGrid ? null : numState(this._state("sensor.load_from_bat")),
       route,
     });
   }

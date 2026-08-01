@@ -10,6 +10,7 @@
 import { LitElement, html, svg } from "lit";
 import { CARD_TYPE, assetUrl } from "./const.js";
 import { deviceImageUrl, imageUrlForKey } from "./device-image.js";
+import { ACTIVE_W, deriveFlowStates } from "./flows.js";
 import { entityMap, relevantStatesChanged, streamDevices } from "./entities.js";
 import {
   fetchHourlyWh,
@@ -810,8 +811,6 @@ export class EcoFlowEnergyCard extends LitElement {
     const solar = numState(this._state("sensor.pv_total"));
     const panels = panelData(this);
     const canBreakdown = this._show("show_panels") && panels.length > 0;
-    const gridState = this._state("sensor.grid_power");
-    const grid = numState(gridState);
 
     return html`<div class="stats">
       <div
@@ -834,33 +833,77 @@ export class EcoFlowEnergyCard extends LitElement {
           : ""}
       </div>
       ${this._show("show_grid")
-        ? this._renderGrid(grid)
+        ? this._renderGrid(this._gridReading())
         : html`<div></div>`}
     </div>`;
   }
 
-  _renderGrid(grid) {
-    const importing = grid != null && grid > 1;
-    const exporting = grid != null && grid < -1;
-    const cls = importing ? "import" : exporting ? "export" : "";
-    const label = importing
+  _gridReading() {
+    const grid = numState(this._state("sensor.grid_power"));
+    if (this._config.grid_source === "device") {
+      return {
+        value: grid != null ? Math.abs(grid) : null,
+        importing: grid != null && grid > ACTIVE_W,
+        exporting: grid != null && grid < -ACTIVE_W,
+        slot: "sensor.grid_power",
+      };
+    }
+    const s = deriveFlowStates({
+      grid,
+      solar: numState(this._state("sensor.pv_total")),
+      load: numState(this._state("sensor.sys_load")),
+      bat: numState(this._state("sensor.bat_power")),
+      loadFromGrid: numState(this._state("sensor.load_from_grid")),
+      loadFromPv: numState(this._state("sensor.load_from_pv")),
+      loadFromBat: numState(this._state("sensor.load_from_bat")),
+    });
+    const fromGrid = Number.isFinite(s.loadFromGrid)
+      ? Math.max(0, s.loadFromGrid)
+      : null;
+    const importing =
+      fromGrid != null ? fromGrid > ACTIVE_W : grid != null && grid > ACTIVE_W;
+    const exporting = !importing && s.exportToGrid > ACTIVE_W;
+    return {
+      value: importing
+        ? fromGrid != null
+          ? fromGrid
+          : grid
+        : exporting
+          ? s.exportToGrid
+          : fromGrid != null
+            ? 0
+            : grid != null
+              ? Math.abs(grid)
+              : null,
+      importing,
+      exporting,
+      slot:
+        importing && fromGrid != null
+          ? "sensor.load_from_grid"
+          : "sensor.grid_power",
+    };
+  }
+
+  _renderGrid(r) {
+    const cls = r.importing ? "import" : r.exporting ? "export" : "";
+    const label = r.importing
       ? this._t("card.grid_import")
-      : exporting
+      : r.exporting
         ? this._t("card.grid_export")
         : this._t("card.grid_idle");
-    const icon = exporting
+    const icon = r.exporting
       ? "mdi:transmission-tower-export"
-      : importing
+      : r.importing
         ? "mdi:transmission-tower-import"
         : "mdi:transmission-tower";
 
     return html`<div
       class="stat grid ${cls} clickable"
-      @click=${() => this._moreInfo("sensor.grid_power")}
+      @click=${() => this._moreInfo(r.slot)}
     >
       <div class="stat-head"><ha-icon icon=${icon}></ha-icon>${this._t("card.grid")}</div>
       <div class="stat-value">
-        ${this._metric(splitPower(grid != null ? Math.abs(grid) : null))}
+        ${this._metric(splitPower(r.value))}
       </div>
       <div class="stat-sub">${label}</div>
     </div>`;

@@ -177,7 +177,9 @@ export class EcoFlowHouseCardEditor extends LitElement {
       ${page.id === "appearance"
         ? this._renderAppearancePage()
         : page.id === "display"
-          ? TOGGLES.map(([key, def, icon]) => this._renderToggle(key, def, icon))
+          ? html`${TOGGLES.map(([key, def, icon]) =>
+              this._renderToggle(key, def, icon)
+            )}${this._renderGridSource()}`
           : page.id === "battery"
             ? this._renderBatteryPage()
             : page.id === "panels"
@@ -311,6 +313,25 @@ export class EcoFlowHouseCardEditor extends LitElement {
         @change=${(ev) => this._set(key, ev.target.checked, def)}
       ></ha-switch>
     </div>`;
+  }
+
+  _renderGridSource() {
+    const options = ["app", "device"].map((v) => ({
+      value: v,
+      label: this._t(`editor.grid_source_${v}`),
+    }));
+    return html`<ha-form
+      .hass=${this.hass}
+      .data=${{ value: this._config.grid_source || "app" }}
+      .schema=${[
+        { name: "value", selector: { select: { options, mode: "dropdown" } } },
+      ]}
+      .computeLabel=${() => this._t("editor.grid_source")}
+      @value-changed=${(ev) => {
+        ev.stopPropagation();
+        this._set("grid_source", ev.detail.value.value, "app");
+      }}
+    ></ha-form>`;
   }
 
   _renderSlot(slot, icon) {
