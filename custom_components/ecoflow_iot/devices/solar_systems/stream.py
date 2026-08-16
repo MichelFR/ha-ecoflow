@@ -697,6 +697,9 @@ _DIAG_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
+)
+
+_FEED_LIMIT_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
     EcoFlowSensorEntityDescription(
         key="feed_grid_limit",
         translation_key="feed_grid_limit",
@@ -1139,6 +1142,7 @@ class StreamMicroinverterDevice(EcoFlowDevice):
                 *_pv_string_sensors(self.pv_string_count),
                 *_ENERGY_SENSORS,
                 *_DIAG_SENSORS,
+                *_FEED_LIMIT_SENSORS,
             ]
         if platform == Platform.BINARY_SENSOR:
             return list(_pv_flag_binary_sensors(self.pv_string_count))

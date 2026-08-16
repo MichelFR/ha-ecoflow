@@ -68,7 +68,6 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | AC socket 1 energy | energy | Wh | _integrated_ |  |
 | AC socket 2 energy | energy | Wh | _integrated_ |  |
 | Wi-Fi signal | signal_strength | dBm | `moduleWifiRssi` | 🔧 💤 |
-| Feed-in power limit | power | W | `feedGridModePowLimit` | 🔧 |
 
 ## Binary sensors
 
@@ -118,4 +117,4 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 ---
 
-_Entity totals: 75 — 54 sensor, 11 binary_sensor, 4 switch, 4 number, 1 select, 1 light._
+_Entity totals: 74 — 53 sensor, 11 binary_sensor, 4 switch, 4 number, 1 select, 1 light._
