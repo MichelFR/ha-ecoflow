@@ -841,8 +841,6 @@ def _local_meter_online(quota: Mapping[str, Any]) -> bool:
 
 
 def _local_meter_bound(quota: Mapping[str, Any]) -> bool:
-    if _local_meter_online(quota):
-        return True
     model = quota_get(quota, "localMeter.model")
     if model and model != "NONE":
         return True
@@ -1390,14 +1388,144 @@ class StreamMicroinverterDevice(EcoFlowDevice):
         return []
 
 
+def _meter_phase_sensors() -> tuple[EcoFlowSensorEntityDescription, ...]:
+    descs = []
+    for phase in ("L1", "L2", "L3"):
+        low = phase.lower()
+        descs.append(
+            EcoFlowSensorEntityDescription(
+                key=f"phase_{low}_power",
+                translation_key=f"phase_{low}_power",
+                mqtt_key=f"gridConnectionPower{phase}",
+                name=f"Phase {phase} power",
+                device_class=SensorDeviceClass.POWER,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfPower.WATT,
+                value_fn=_round2,
+                available_fn=lambda q, k=f"gridConnectionPower{phase}": k in q,
+                undocumented=True,
+            )
+        )
+        descs.append(
+            EcoFlowSensorEntityDescription(
+                key=f"phase_{low}_voltage",
+                translation_key=f"phase_{low}_voltage",
+                mqtt_key=f"gridConnectionVol{phase}",
+                name=f"Phase {phase} voltage",
+                device_class=SensorDeviceClass.VOLTAGE,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                entity_registry_enabled_default=False,
+                value_fn=_round2,
+                available_fn=lambda q, k=f"gridConnectionVol{phase}": k in q,
+                undocumented=True,
+            )
+        )
+        descs.append(
+            EcoFlowSensorEntityDescription(
+                key=f"phase_{low}_current",
+                translation_key=f"phase_{low}_current",
+                mqtt_key=f"gridConnectionAmp{phase}",
+                name=f"Phase {phase} current",
+                device_class=SensorDeviceClass.CURRENT,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                entity_registry_enabled_default=False,
+                value_fn=_round2,
+                available_fn=lambda q, k=f"gridConnectionAmp{phase}": k in q,
+                undocumented=True,
+            )
+        )
+    return tuple(descs)
+
+
+_METER_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
+    EcoFlowSensorEntityDescription(
+        key="grid_power",
+        translation_key="grid_power",
+        mqtt_key="powGetSysGrid",
+        name="Grid power",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        value_fn=_round2,
+        available_fn=lambda q: "powGetSysGrid" in q,
+        undocumented=True,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="total_active_energy",
+        translation_key="total_active_energy",
+        mqtt_key="gridConnectionDataRecord.totalActiveEnergy",
+        name="Total active energy",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        value_fn=_scale_1000,
+        available_fn=lambda q: quota_get(q, "gridConnectionDataRecord.totalActiveEnergy")
+        is not None,
+        undocumented=True,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="total_reactive_energy",
+        translation_key="total_reactive_energy",
+        mqtt_key="gridConnectionDataRecord.totalReactiveEnergy",
+        name="Total reactive energy",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement="kvarh",
+        suggested_display_precision=2,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=_scale_1000,
+        available_fn=lambda q: quota_get(q, "gridConnectionDataRecord.totalReactiveEnergy")
+        is not None,
+        undocumented=True,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="power_factor",
+        translation_key="power_factor",
+        mqtt_key="gridConnectionPowerFactor",
+        name="Power factor",
+        device_class=SensorDeviceClass.POWER_FACTOR,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        available_fn=lambda q: "gridConnectionPowerFactor" in q,
+        undocumented=True,
+    ),
+    *_meter_phase_sensors(),
+    _GRID_CONNECTION_STATUS_SENSOR,
+)
+
+_METER_BINARY_SENSORS: tuple[EcoFlowBinarySensorEntityDescription, ...] = (
+    *(
+        EcoFlowBinarySensorEntityDescription(
+            key=f"phase_{phase.lower()}_connected",
+            translation_key=f"phase_{phase.lower()}_connected",
+            mqtt_key=f"gridConnectionFlag{phase}",
+            name=f"Phase {phase} connected",
+            device_class=BinarySensorDeviceClass.PLUG,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            available_fn=lambda q, k=f"gridConnectionFlag{phase}": k in q,
+            undocumented=True,
+        )
+        for phase in ("L1", "L2", "L3")
+    ),
+    _PROBLEM_BINARY_SENSOR,
+)
+
+
 class SmartMeterDevice(EcoFlowDevice):
     """EcoFlow Smart Meter: standalone grid meter of the Stream ecosystem.
 
-    Shares the BK series serial space with the Streams but reports only a
-    small quota subset (grid connection status + fault codes confirmed from a
-    live unit); its measurements are surfaced on the Stream it is bound to as
-    the ``localMeter.*`` sensors. Kept as its own class so the broad Stream
-    ``BK`` prefix doesn't dress it up as a Stream with ~85 dead entities.
+    Shares the BK series serial space with the Streams but reports its own
+    small quota (grid power, per-phase readings, lifetime energy — field set
+    confirmed from live issue-#5 diagnostics). Kept as its own class so the
+    broad Stream ``BK`` prefix doesn't dress it up as a Stream with ~85 dead
+    entities. A LAN-bound meter's readings additionally appear on its Stream
+    as the ``localMeter.*`` sensors.
     """
 
     model = "EcoFlow Smart Meter"
@@ -1405,16 +1533,7 @@ class SmartMeterDevice(EcoFlowDevice):
 
     def entity_descriptions(self, platform: Platform) -> list[_EcoFlowDescription]:
         if platform == Platform.SENSOR:
-            return [_GRID_CONNECTION_STATUS_SENSOR]
+            return list(_METER_SENSORS)
         if platform == Platform.BINARY_SENSOR:
-            return [_PROBLEM_BINARY_SENSOR]
-        return []
-
-    def dynamic_entity_descriptions(
-        self, platform: Platform, quota: Mapping[str, Any]
-    ) -> list[_EcoFlowDescription]:
-        # If the meter's own quota ever carries the localMeter block (only
-        # confirmed on the bound Stream so far), expose the readings here too.
-        if platform == Platform.SENSOR and _local_meter_bound(quota):
-            return list(_LOCAL_METER_SENSORS)
+            return list(_METER_BINARY_SENSORS)
         return []
