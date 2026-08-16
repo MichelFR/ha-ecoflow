@@ -23,6 +23,7 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Total AC power | power | W | `acTotalActivePower` | ⚠️ |
 | Grid connection status | — | — | `gridConnectionSta` | 🔧 ⚠️ |
 | Meter phase A power | power | W | `cloudMetter.phaseAPower` | 💤 |
+| Grid code | — | — | `gridCodeSelection` | 🔧 💤 ⚠️ |
 | Solar power | power | W | `powGetPvSum` |  |
 | Solar string 1 power | power | W | _computed_ |  |
 | Solar string 1 voltage | voltage | V | `plugInInfoPvVol` | 🔧 💤 |
@@ -34,6 +35,7 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Grid import energy | energy | Wh | `gridConnectionPower` |  |
 | Grid export energy | energy | Wh | `gridConnectionPower` |  |
 | Wi-Fi signal | signal_strength | dBm | `moduleWifiRssi` | 🔧 💤 |
+| Device role | — | — | `seriesConnectDeviceStatus` | 🔧 💤 ⚠️ |
 | Feed-in power limit | power | W | `feedGridModePowLimit` | 🔧 |
 
 ## Binary sensors
@@ -45,4 +47,4 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 ---
 
-_Entity totals: 22 — 20 sensor, 2 binary_sensor, 0 switch, 0 number, 0 select, 0 light._
+_Entity totals: 24 — 22 sensor, 2 binary_sensor, 0 switch, 0 number, 0 select, 0 light._

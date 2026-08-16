@@ -47,6 +47,30 @@ async def async_setup_entry(
                 entities.append(EcoFlowSensor(coordinator, sn, description))
     async_add_entities(entities)
 
+    added: dict[str, set[str]] = {}
+
+    @callback
+    def _add_dynamic() -> None:
+        new_entities: list[SensorEntity] = []
+        for sn, device in coordinator.devices.items():
+            state = coordinator.data.get(sn)
+            if state is None:
+                continue
+            seen = added.setdefault(sn, set())
+            for description in device.dynamic_entity_descriptions(_PLATFORM, state.quota):
+                if description.key in seen:
+                    continue
+                seen.add(description.key)
+                if isinstance(description, EcoFlowIntegralSensorEntityDescription):
+                    new_entities.append(EcoFlowIntegralSensor(coordinator, sn, description))
+                else:
+                    new_entities.append(EcoFlowSensor(coordinator, sn, description))
+        if new_entities:
+            async_add_entities(new_entities)
+
+    _add_dynamic()
+    entry.async_on_unload(coordinator.async_add_listener(_add_dynamic))
+
 
 class EcoFlowSensor(EcoFlowEntity, SensorEntity):
     """A measured value reported by an EcoFlow device."""

@@ -11,10 +11,31 @@ directly as ``value_fn`` on an entity description.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 Number = float | int
+
+
+def quota_get(quota: Mapping[str, Any], key: str | None) -> Any:
+    """Fetch ``key`` from quota, walking nested objects for dotted keys.
+
+    Quota fields arrive both flattened (``"a.b": 1``, from MQTT pushes) and
+    nested (``"a": {"b": 1}``, from the HTTP snapshot); this resolves either.
+    """
+    if not key:
+        return None
+    value = quota.get(key)
+    if value is not None or "." not in key:
+        return value
+    node: Any = quota
+    for part in key.split("."):
+        if not isinstance(node, Mapping):
+            return None
+        node = node.get(part)
+        if node is None:
+            return None
+    return node
 
 
 def round_value(value: Any, ndigits: int = 2) -> float | None:

@@ -46,6 +46,7 @@ from ..helpers import (
     abs_round as _abs_round,
     battery_charging_icon,
     milli as _scale_1000,
+    quota_get,
     round2 as _round2,
 )
 
@@ -222,11 +223,22 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # accuChgEnergy/accuDsgEnergy are not in the documented quota schema and are
-    # not reported by current firmware, so they sit at "unknown" and never show
-    # up as Energy-Dashboard battery statistics. Kept (disabled by default) for
-    # any firmware that does emit them; the Energy Dashboard should instead use
-    # the powGetBpCms-derived charge/discharge energy below.
+    EcoFlowSensorEntityDescription(
+        key="ai_tou_target_soc",
+        mqtt_key="aiTouTargetSoc",
+        translation_key="ai_tou_target_soc",
+        name="AI target charge level",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        available_fn=lambda q: bool(q.get("aiTouValid")),
+        undocumented=True,
+    ),
+    # accuChgEnergy/accuDsgEnergy are not in the documented quota schema, but
+    # newer Stream firmware does report these device-side lifetime totals over
+    # MQTT. Kept disabled by default so they don't double up with the
+    # powGetBpCms-derived charge/discharge energy below, which remains the
+    # Energy-Dashboard default.
     EcoFlowSensorEntityDescription(
         key="accu_chg_energy",
         translation_key="accu_chg_energy",
@@ -236,6 +248,8 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         entity_registry_enabled_default=False,
+        available_fn=lambda q: "accuChgEnergy" in q,
+        undocumented=True,
     ),
     EcoFlowSensorEntityDescription(
         key="accu_dsg_energy",
@@ -246,6 +260,8 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         entity_registry_enabled_default=False,
+        available_fn=lambda q: "accuDsgEnergy" in q,
+        undocumented=True,
     ),
     # Calendar-aging health, distinct from cmsBattSoh (cycle health); often
     # already below 100% while the cycle SoH still reads full.
@@ -262,6 +278,18 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         undocumented=True,
     ),
     EcoFlowSensorEntityDescription(
+        key="cycle_soh",
+        mqtt_key="cycleSoh",
+        translation_key="cycle_soh",
+        name="Battery cycle health",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=_round2,
+        available_fn=lambda q: "cycleSoh" in q,
+        undocumented=True,
+    ),
+    EcoFlowSensorEntityDescription(
         key="cell_vol_delta",
         translation_key="cell_vol_delta",
         mqtt_key="maxVolDiff",
@@ -272,6 +300,32 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         available_fn=lambda q: "maxVolDiff" in q,
+        undocumented=True,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="max_cell_vol",
+        translation_key="max_cell_vol",
+        mqtt_key="maxCellVol",
+        name="Battery max cell voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        available_fn=lambda q: "maxCellVol" in q,
+        undocumented=True,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="min_cell_vol",
+        translation_key="min_cell_vol",
+        mqtt_key="minCellVol",
+        name="Battery min cell voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfElectricPotential.MILLIVOLT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        available_fn=lambda q: "minCellVol" in q,
         undocumented=True,
     ),
     EcoFlowSensorEntityDescription(
@@ -312,6 +366,19 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         available_fn=lambda q: "minCellTemp" in q,
         undocumented=True,
     ),
+    EcoFlowSensorEntityDescription(
+        key="heater_temp",
+        translation_key="heater_temp",
+        mqtt_key="maxHeatfilmTemp",
+        name="Battery heater temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        available_fn=lambda q: "maxHeatfilmTemp" in q,
+        undocumented=True,
+    ),
 )
 
 _POWERFLOW_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
@@ -324,6 +391,19 @@ _POWERFLOW_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
         value_fn=_round2,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="avail_charge_power",
+        translation_key="avail_charge_power",
+        mqtt_key="curAvaiToBmsPower",
+        name="Available charge power",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        available_fn=lambda q: "curAvaiToBmsPower" in q,
+        undocumented=True,
     ),
     EcoFlowSensorEntityDescription(
         key="sys_load",
@@ -460,6 +540,17 @@ _GRID_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
         entity_registry_enabled_default=False,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="grid_code",
+        translation_key="grid_code",
+        mqtt_key="gridCodeSelection",
+        name="Grid code",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda v: str(v).removeprefix("GRID_STD_CODE_"),
+        available_fn=lambda q: "gridCodeSelection" in q,
+        undocumented=True,
     ),
 )
 
@@ -645,6 +736,17 @@ _AC_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         value_fn=_round2,
     ),
+    EcoFlowSensorEntityDescription(
+        key="ac_standby_time",
+        translation_key="ac_standby_time",
+        mqtt_key="acStandbyTime",
+        name="AC standby timeout",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        available_fn=lambda q: "acStandbyTime" in q,
+        undocumented=True,
+    ),
 )
 
 
@@ -697,6 +799,16 @@ _DIAG_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),
+    EcoFlowSensorEntityDescription(
+        key="device_role",
+        translation_key="device_role",
+        mqtt_key="seriesConnectDeviceStatus",
+        name="Device role",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        available_fn=lambda q: "seriesConnectDeviceStatus" in q,
+        undocumented=True,
+    ),
 )
 
 _FEED_LIMIT_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
@@ -711,13 +823,135 @@ _FEED_LIMIT_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
     ),
 )
 
+# --- Local smart meter (LAN) ---------------------------------------------------
+
+
+def _local_meter_value(field: str):
+    def _fn(quota: Mapping[str, Any]) -> Any:
+        return quota_get(quota, f"localMeter.{field}")
+
+    return _fn
+
+
+def _local_meter_online(quota: Mapping[str, Any]) -> bool:
+    return bool(quota_get(quota, "localMeter.online"))
+
+
+def _local_meter_bound(quota: Mapping[str, Any]) -> bool:
+    if _local_meter_online(quota):
+        return True
+    model = quota_get(quota, "localMeter.model")
+    if model and model != "NONE":
+        return True
+    return bool(quota_get(quota, "localMeter.sn"))
+
+
+def _local_meter_sensors() -> tuple[EcoFlowSensorEntityDescription, ...]:
+    descs = [
+        EcoFlowSensorEntityDescription(
+            key="local_meter_power",
+            translation_key="local_meter_power",
+            name="Local meter power",
+            device_class=SensorDeviceClass.POWER,
+            state_class=SensorStateClass.MEASUREMENT,
+            native_unit_of_measurement=UnitOfPower.WATT,
+            quota_value_fn=_local_meter_value("totalPwr"),
+            available_fn=_local_meter_online,
+            undocumented=True,
+        ),
+        EcoFlowSensorEntityDescription(
+            key="local_meter_import_energy",
+            translation_key="local_meter_import_energy",
+            name="Local meter import energy",
+            device_class=SensorDeviceClass.ENERGY,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+            suggested_display_precision=2,
+            quota_value_fn=_local_meter_value("totalImportKwh"),
+            available_fn=_local_meter_online,
+            undocumented=True,
+        ),
+        EcoFlowSensorEntityDescription(
+            key="local_meter_export_energy",
+            translation_key="local_meter_export_energy",
+            name="Local meter export energy",
+            device_class=SensorDeviceClass.ENERGY,
+            state_class=SensorStateClass.TOTAL_INCREASING,
+            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+            suggested_display_precision=2,
+            quota_value_fn=_local_meter_value("totalExportKwh"),
+            available_fn=_local_meter_online,
+            undocumented=True,
+        ),
+    ]
+    for phase in ("A", "B", "C"):
+        low = phase.lower()
+        descs.append(
+            EcoFlowSensorEntityDescription(
+                key=f"local_meter_phase_{low}_power",
+                translation_key=f"local_meter_phase_{low}_power",
+                name=f"Local meter phase {phase} power",
+                device_class=SensorDeviceClass.POWER,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfPower.WATT,
+                entity_registry_enabled_default=False,
+                quota_value_fn=_local_meter_value(f"phase{phase}Power"),
+                available_fn=_local_meter_online,
+                undocumented=True,
+            )
+        )
+        descs.append(
+            EcoFlowSensorEntityDescription(
+                key=f"local_meter_phase_{low}_voltage",
+                translation_key=f"local_meter_phase_{low}_voltage",
+                name=f"Local meter phase {phase} voltage",
+                device_class=SensorDeviceClass.VOLTAGE,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                entity_registry_enabled_default=False,
+                quota_value_fn=_local_meter_value(f"phase{phase}Vol"),
+                available_fn=_local_meter_online,
+                undocumented=True,
+            )
+        )
+        descs.append(
+            EcoFlowSensorEntityDescription(
+                key=f"local_meter_phase_{low}_current",
+                translation_key=f"local_meter_phase_{low}_current",
+                name=f"Local meter phase {phase} current",
+                device_class=SensorDeviceClass.CURRENT,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                entity_registry_enabled_default=False,
+                quota_value_fn=_local_meter_value(f"phase{phase}Cur"),
+                available_fn=_local_meter_online,
+                undocumented=True,
+            )
+        )
+    return tuple(descs)
+
+
+_LOCAL_METER_SENSORS = _local_meter_sensors()
+
 # --- Binary sensors ----------------------------------------------------------
 
 # Fields that report a non-zero code when something is wrong. Deliberately
 # conservative (canonical error/fault codes only) to avoid false positives from
 # status fields that are non-zero in normal operation; mpptPv*Fault is excluded
 # because it reads non-zero simply when a PV string is unplugged.
-_FAULT_FIELDS = ("errCode", "allErrCode", "bmsFault", "allBmsFault", "bmsFaultState")
+_FAULT_FIELDS = (
+    "errCode",
+    "allErrCode",
+    "bmsFault",
+    "allBmsFault",
+    "bmsFaultState",
+    "bmsProtectState1",
+    "bmsProtectState2",
+    "bmsAlarmState1",
+    "bmsAlarmState2",
+)
 
 
 def _has_fault(quota: Mapping[str, Any]) -> bool | None:
@@ -1117,6 +1351,8 @@ class StreamDevice(EcoFlowDevice):
         # One Number per configured base-load period (discovered from quota).
         if platform == Platform.NUMBER:
             return list(_base_load_numbers(quota))
+        if platform == Platform.SENSOR and _local_meter_bound(quota):
+            return list(_LOCAL_METER_SENSORS)
         return []
 
 

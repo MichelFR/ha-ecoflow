@@ -76,6 +76,7 @@ pkg.__path__ = [str(root / "ecoflow_iot")]
 sys.modules["ecoflow_iot"] = pkg
 
 from ecoflow_iot.devices.base import Platform  # noqa: E402
+from ecoflow_iot.devices.helpers import quota_get  # noqa: E402
 from ecoflow_iot.devices.solar_systems.stream import StreamDevice  # noqa: E402
 
 fails = 0
@@ -92,7 +93,7 @@ def raw_value(desc, quota):
     """Mirror EcoFlowEntity._raw_value for the test."""
     if desc.quota_value_fn is not None:
         return desc.quota_value_fn(quota)
-    value = quota.get(desc.mqtt_key)
+    value = quota_get(quota, desc.mqtt_key)
     if value is None:
         return None
     return desc.value_fn(value) if desc.value_fn is not None else value
@@ -118,10 +119,40 @@ check("cell temps default-disabled", SENS["max_cell_temp"].entity_registry_enabl
 check("cell temp flagged undocumented", SENS["min_cell_temp"].undocumented, True)
 check("cell_vol_delta value", raw_value(SENS["cell_vol_delta"], {"maxVolDiff": 1}), 1)
 check("cell_vol_delta default-disabled", SENS["cell_vol_delta"].entity_registry_enabled_default, False)
+check("cycle_soh value rounds", raw_value(SENS["cycle_soh"], {"cycleSoh": 99.9967}), 100.0)
+check("max cell vol value", raw_value(SENS["max_cell_vol"], {"maxCellVol": 3361}), 3361)
+check("min cell vol value", raw_value(SENS["min_cell_vol"], {"minCellVol": 3352}), 3352)
+check("cell vols default-disabled", SENS["min_cell_vol"].entity_registry_enabled_default, False)
+check("heater temp value", raw_value(SENS["heater_temp"], {"maxHeatfilmTemp": 35}), 35)
+check("accu chg gated when absent", available(SENS["accu_chg_energy"], {}), False)
+check("accu chg available when reported", available(SENS["accu_chg_energy"], {"accuChgEnergy": 24894}), True)
 
 # --- status -----------------------------------------------------------------
 check("ac_total_power rounds", raw_value(SENS["ac_total_power"], {"acTotalActivePower": 677.4123}), 677.41)
 check("grid status passthrough", raw_value(SENS["grid_connection_status"], {"gridConnectionSta": "PANEL_FEED_GRID"}), "PANEL_FEED_GRID")
+check("avail charge power value", raw_value(SENS["avail_charge_power"], {"curAvaiToBmsPower": 804}), 804)
+check("ai target hidden w/o aiTouValid", available(SENS["ai_tou_target_soc"], {"aiTouTargetSoc": 93, "aiTouValid": False}), False)
+check("ai target shown when valid", available(SENS["ai_tou_target_soc"], {"aiTouTargetSoc": 93, "aiTouValid": True}), True)
+check("ai target value", raw_value(SENS["ai_tou_target_soc"], {"aiTouTargetSoc": 93}), 93)
+check("ac standby value", raw_value(SENS["ac_standby_time"], {"acStandbyTime": 120}), 120)
+check("grid code strips prefix", raw_value(SENS["grid_code"], {"gridCodeSelection": "GRID_STD_CODE_VDE_4105"}), "VDE_4105")
+check("device role value", raw_value(SENS["device_role"], {"seriesConnectDeviceStatus": "MASTER"}), "MASTER")
+check("has_meter reads nested cloudMetter", raw_value(BIN["has_meter"], {"cloudMetter": {"hasMeter": True}}), True)
+check("meter phase A reads nested", raw_value(SENS["meter_phase_a"], {"cloudMetter": {"phaseAPower": 42.0}}), 42.0)
+check("meter phase A reads flattened", raw_value(SENS["meter_phase_a"], {"cloudMetter.phaseAPower": 41.0}), 41.0)
+
+check("no local meter -> no dynamic sensors", dev.dynamic_entity_descriptions(Platform.SENSOR, {"localMeter": {"online": 0, "model": "NONE", "sn": ""}}), [])
+check("meter discovery via model", dev.dynamic_entity_descriptions(Platform.SENSOR, {"localMeter": {"online": 0, "model": "SMR"}}) != [], True)
+METER_Q = {"localMeter": {"online": 1, "model": "SMR", "totalPwr": 512.5, "totalImportKwh": 1234.5, "totalExportKwh": 99.9, "phaseAPower": 100.0, "phaseAVol": 230.1, "phaseACur": 0.5}}
+DYN = {d.key: d for d in dev.dynamic_entity_descriptions(Platform.SENSOR, METER_Q)}
+check("local meter sensor count", len(DYN), 12)
+check("local meter power (nested)", raw_value(DYN["local_meter_power"], METER_Q), 512.5)
+check("local meter power (flattened)", raw_value(DYN["local_meter_power"], {"localMeter.totalPwr": 300.0}), 300.0)
+check("local meter import kWh", raw_value(DYN["local_meter_import_energy"], METER_Q), 1234.5)
+check("local meter export kWh", raw_value(DYN["local_meter_export_energy"], METER_Q), 99.9)
+check("local meter phase A voltage", raw_value(DYN["local_meter_phase_a_voltage"], METER_Q), 230.1)
+check("local meter unavailable when offline", available(DYN["local_meter_power"], {"localMeter": {"online": 0}}), False)
+check("local meter available when online", available(DYN["local_meter_power"], METER_Q), True)
 
 # --- inverter-temp fallback -------------------------------------------------
 inv = SENS["inv_temp"]
@@ -144,6 +175,9 @@ check("problem clear -> False", raw_value(prob, {"errCode": 0, "allErrCode": 0})
 check("problem set via errCode", raw_value(prob, {"errCode": 7}), True)
 check("problem set via devErrcode list", raw_value(prob, {"devErrcodeList": {"devErrcode": [12]}}), True)
 check("problem empty err list -> False", raw_value(prob, {"devErrcodeList": {"devErrcode": []}}), False)
+check("problem set via bmsProtectState1", raw_value(prob, {"bmsProtectState1": 4}), True)
+check("problem set via bmsAlarmState2", raw_value(prob, {"bmsAlarmState2": 1}), True)
+check("problem clear incl. protect/alarm", raw_value(prob, {"bmsProtectState1": 0, "bmsAlarmState2": 0}), False)
 check("problem unknown w/o fields -> None", raw_value(prob, {}), None)
 check("problem unavailable w/o fields", available(prob, {}), False)
 check("problem available when clear", available(prob, {"errCode": 0}), True)

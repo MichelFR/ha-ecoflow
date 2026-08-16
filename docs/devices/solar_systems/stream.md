@@ -25,16 +25,22 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Battery cycles | — | — | `cycles` | 🔧 |
 | Time to full | duration | min | `cmsChgRemTime` | 🔧 |
 | Time to empty | duration | min | `cmsDsgRemTime` | 🔧 |
-| Total charged | energy | Wh | `accuChgEnergy` | 💤 |
-| Total discharged | energy | Wh | `accuDsgEnergy` | 💤 |
+| AI target charge level | — | % | `aiTouTargetSoc` | 🔧 ⚠️ |
+| Total charged | energy | Wh | `accuChgEnergy` | 💤 ⚠️ |
+| Total discharged | energy | Wh | `accuDsgEnergy` | 💤 ⚠️ |
 | Battery calendar health | — | % | `calendarSoh` | 🔧 ⚠️ |
+| Battery cycle health | — | % | `cycleSoh` | 🔧 ⚠️ |
 | Cell voltage delta | voltage | mV | `maxVolDiff` | 🔧 💤 ⚠️ |
+| Battery max cell voltage | voltage | mV | `maxCellVol` | 🔧 💤 ⚠️ |
+| Battery min cell voltage | voltage | mV | `minCellVol` | 🔧 💤 ⚠️ |
 | MOSFET temperature | temperature | °C | `maxMosTemp` | 🔧 ⚠️ |
 | Battery max cell temperature | temperature | °C | `maxCellTemp` | 🔧 💤 ⚠️ |
 | Battery min cell temperature | temperature | °C | `minCellTemp` | 🔧 💤 ⚠️ |
+| Battery heater temperature | temperature | °C | `maxHeatfilmTemp` | 🔧 💤 ⚠️ |
 | Battery charge energy | energy | Wh | _integrated_ |  |
 | Battery discharge energy | energy | Wh | _integrated_ |  |
 | Battery power | power | W | `powGetBpCms` |  |
+| Available charge power | power | W | `curAvaiToBmsPower` | 🔧 💤 ⚠️ |
 | Load power | power | W | `powGetSysLoad` |  |
 | Load from battery | power | W | `powGetSysLoadFromBp` | 💤 |
 | Load from grid | power | W | `powGetSysLoadFromGrid` | 💤 |
@@ -47,6 +53,7 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Total AC power | power | W | `acTotalActivePower` | ⚠️ |
 | Grid connection status | — | — | `gridConnectionSta` | 🔧 ⚠️ |
 | Meter phase A power | power | W | `cloudMetter.phaseAPower` | 💤 |
+| Grid code | — | — | `gridCodeSelection` | 🔧 💤 ⚠️ |
 | Solar power | power | W | `powGetPvSum` |  |
 | Solar string 1 power | power | W | _computed_ |  |
 | Solar string 1 voltage | voltage | V | `plugInInfoPvVol` | 🔧 💤 |
@@ -62,12 +69,14 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Solar string 4 current | current | A | `plugInInfoPv4Amp` | 🔧 💤 |
 | AC socket 1 power | power | W | `powGetSchuko1` |  |
 | AC socket 2 power | power | W | `powGetSchuko2` |  |
+| AC standby timeout | duration | min | `acStandbyTime` | 🔧 ⚠️ |
 | Solar energy | energy | Wh | _integrated_ |  |
 | Grid import energy | energy | Wh | `gridConnectionPower` |  |
 | Grid export energy | energy | Wh | `gridConnectionPower` |  |
 | AC socket 1 energy | energy | Wh | _integrated_ |  |
 | AC socket 2 energy | energy | Wh | _integrated_ |  |
 | Wi-Fi signal | signal_strength | dBm | `moduleWifiRssi` | 🔧 💤 |
+| Device role | — | — | `seriesConnectDeviceStatus` | 🔧 💤 ⚠️ |
 
 ## Binary sensors
 
@@ -117,4 +126,4 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 ---
 
-_Entity totals: 74 — 53 sensor, 11 binary_sensor, 4 switch, 4 number, 1 select, 1 light._
+_Entity totals: 83 — 62 sensor, 11 binary_sensor, 4 switch, 4 number, 1 select, 1 light._

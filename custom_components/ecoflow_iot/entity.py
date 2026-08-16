@@ -15,6 +15,7 @@ from .const import (
 )
 from .coordinator import EcoFlowCoordinator
 from .devices.base import _EcoFlowDescription
+from .devices.helpers import quota_get
 from .models import DeviceState
 
 
@@ -72,7 +73,7 @@ class EcoFlowEntity(CoordinatorEntity[EcoFlowCoordinator]):
         desc: _EcoFlowDescription = self.entity_description  # type: ignore[assignment]
         if desc.quota_value_fn is not None:
             return desc.quota_value_fn(self._quota)
-        value = self._quota.get(desc.mqtt_key)
+        value = quota_get(self._quota, desc.mqtt_key)
         if value is None:
             return None
         if desc.value_fn is not None:
