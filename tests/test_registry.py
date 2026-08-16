@@ -87,6 +87,10 @@ cases = [
     ("BK11ZEBB2H350011", {"cmsBattSoc": 50}, "StreamDevice"),
     ("BK11ZEBB2H350011", {"gridConnectionPower": 1}, "StreamMicroinverterDevice"),
     ("BK11ZEBB2H350011", {}, "StreamDevice"),
+    # Smart Meter shares the BK serial space but is its own (tiny) device —
+    # it must not resolve as a Stream regardless of quota content (issue #5).
+    ("BK21Z1BB7H500011", {}, "SmartMeterDevice"),
+    ("BK21Z1BB7H500011", {"gridConnectionSta": "PANEL_GRID_IN"}, "SmartMeterDevice"),
     ("HW513000SF767194", {}, "PowerStreamDevice"),
     ("HW52ZDH1RF3J0033", {}, "SmartPlugDevice"),
     # EcoFlow x Shelly devices are silenced (recognised, but not served by the

@@ -51,6 +51,7 @@ correctly instead of raising an "unsupported device" repair.
 | `Y71` | Delta Pro Ultra | high (app registry) |
 | `D3N`, `D3M` | Delta 3 Max / Delta 3 Max Plus | high (`D3M` shared — disambiguated by quota `powGetPv2`) |
 | `BK` (`BK0`–`BK6`, `BK11`, `BK12`) | Stream AC / AC Pro / Ultra / Ultra X / Pro / Microinverter | high (app registry) |
+| `BK21` | Smart Meter (Stream ecosystem; carved out of the broad `BK` Stream match) | high (field-observed serial, issue #5) |
 | `HW51` | PowerStream | high (app registry) |
 | `HW52` | Smart Plug | high (app registry) |
 | `HJ3`, `J32` | PowerOcean | high (`HJ3` docs + app registry, `J32` field-observed) |

@@ -34,6 +34,7 @@ from .smart_living import (
 )
 from .solar_systems import (
     PowerStreamDevice,
+    SmartMeterDevice,
     StreamDevice,
     StreamMicroinverterDevice,
 )
@@ -46,6 +47,8 @@ _LOGGER = logging.getLogger(__name__)
 #     PLUS is identified by its second PV input ``powGetPv2``).
 #   - StreamMicroinverterDevice precedes StreamDevice (shared BK SN prefix; the
 #     microinverter is the battery-less variant).
+#   - SmartMeterDevice precedes both Stream classes (its BK21 prefix is inside
+#     the broad Stream BK prefix).
 DEVICE_REGISTRY: tuple[type[EcoFlowDevice], ...] = (
     # Power Stations
     Delta2Device,
@@ -64,6 +67,7 @@ DEVICE_REGISTRY: tuple[type[EcoFlowDevice], ...] = (
     SmartPlugDevice,
     WaveDevice,
     # Solar systems
+    SmartMeterDevice,
     StreamMicroinverterDevice,
     StreamDevice,
     PowerStreamDevice,

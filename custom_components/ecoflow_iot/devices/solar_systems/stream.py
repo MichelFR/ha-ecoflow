@@ -1,8 +1,9 @@
 """EcoFlow Stream family device definitions.
 
-Covers Stream Ultra / Ultra X / AC / AC Pro / Pro (full feature set) and the
-Stream Microinverter (grid + PV only, no battery/relays). Field names and units
-follow the public quota schema (mV/mA values are scaled to V/A here).
+Covers Stream Ultra / Ultra X / AC / AC Pro / Pro (full feature set), the
+Stream Microinverter (grid + PV only, no battery/relays) and the Smart Meter
+(BK21, status only). Field names and units follow the public quota schema
+(mV/mA values are scaled to V/A here).
 """
 
 from __future__ import annotations
@@ -451,6 +452,16 @@ _POWERFLOW_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
 )
 
 # Grid + inverter sensors shared by every Stream variant (incl. microinverter).
+_GRID_CONNECTION_STATUS_SENSOR = EcoFlowSensorEntityDescription(
+    key="grid_connection_status",
+    translation_key="grid_connection_status",
+    mqtt_key="gridConnectionSta",
+    name="Grid connection status",
+    entity_category=EntityCategory.DIAGNOSTIC,
+    available_fn=lambda q: "gridConnectionSta" in q,
+    undocumented=True,
+)
+
 _GRID_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
     EcoFlowSensorEntityDescription(
         key="grid_power",
@@ -522,15 +533,7 @@ _GRID_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         available_fn=lambda q: "acTotalActivePower" in q,
         undocumented=True,
     ),
-    EcoFlowSensorEntityDescription(
-        key="grid_connection_status",
-        translation_key="grid_connection_status",
-        mqtt_key="gridConnectionSta",
-        name="Grid connection status",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        available_fn=lambda q: "gridConnectionSta" in q,
-        undocumented=True,
-    ),
+    _GRID_CONNECTION_STATUS_SENSOR,
     EcoFlowSensorEntityDescription(
         key="meter_phase_a",
         translation_key="meter_phase_a",
@@ -976,6 +979,17 @@ def _has_fault(quota: Mapping[str, Any]) -> bool | None:
     return False if present else None
 
 
+_PROBLEM_BINARY_SENSOR = EcoFlowBinarySensorEntityDescription(
+    key="problem",
+    translation_key="problem",
+    name="Problem",
+    device_class=BinarySensorDeviceClass.PROBLEM,
+    entity_category=EntityCategory.DIAGNOSTIC,
+    quota_value_fn=_has_fault,
+    available_fn=lambda q: _has_fault(q) is not None,
+    undocumented=True,
+)
+
 _BINARY_SENSORS: tuple[EcoFlowBinarySensorEntityDescription, ...] = (
     EcoFlowBinarySensorEntityDescription(
         key="battery_charging",
@@ -1035,16 +1049,7 @@ _BINARY_SENSORS: tuple[EcoFlowBinarySensorEntityDescription, ...] = (
         available_fn=lambda q: "waterInFlag" in q,
         undocumented=True,
     ),
-    EcoFlowBinarySensorEntityDescription(
-        key="problem",
-        translation_key="problem",
-        name="Problem",
-        device_class=BinarySensorDeviceClass.PROBLEM,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        quota_value_fn=_has_fault,
-        available_fn=lambda q: _has_fault(q) is not None,
-        undocumented=True,
-    ),
+    _PROBLEM_BINARY_SENSOR,
 )
 
 
@@ -1382,4 +1387,34 @@ class StreamMicroinverterDevice(EcoFlowDevice):
             ]
         if platform == Platform.BINARY_SENSOR:
             return list(_pv_flag_binary_sensors(self.pv_string_count))
+        return []
+
+
+class SmartMeterDevice(EcoFlowDevice):
+    """EcoFlow Smart Meter: standalone grid meter of the Stream ecosystem.
+
+    Shares the BK series serial space with the Streams but reports only a
+    small quota subset (grid connection status + fault codes confirmed from a
+    live unit); its measurements are surfaced on the Stream it is bound to as
+    the ``localMeter.*`` sensors. Kept as its own class so the broad Stream
+    ``BK`` prefix doesn't dress it up as a Stream with ~85 dead entities.
+    """
+
+    model = "EcoFlow Smart Meter"
+    sn_prefixes = ("BK21",)
+
+    def entity_descriptions(self, platform: Platform) -> list[_EcoFlowDescription]:
+        if platform == Platform.SENSOR:
+            return [_GRID_CONNECTION_STATUS_SENSOR]
+        if platform == Platform.BINARY_SENSOR:
+            return [_PROBLEM_BINARY_SENSOR]
+        return []
+
+    def dynamic_entity_descriptions(
+        self, platform: Platform, quota: Mapping[str, Any]
+    ) -> list[_EcoFlowDescription]:
+        # If the meter's own quota ever carries the localMeter block (only
+        # confirmed on the bound Stream so far), expose the readings here too.
+        if platform == Platform.SENSOR and _local_meter_bound(quota):
+            return list(_LOCAL_METER_SENSORS)
         return []
