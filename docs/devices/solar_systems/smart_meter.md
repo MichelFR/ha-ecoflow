@@ -13,6 +13,8 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 | Entity | Device class | Unit | Quota key | Flags |
 |---|---|---|---|---|
+| Grid import energy | energy | Wh | _integrated_ | ⚠️ |
+| Grid export energy | energy | Wh | _integrated_ | ⚠️ |
 | Grid power | power | W | `powGetSysGrid` | ⚠️ |
 | Total active energy | energy | kWh | `gridConnectionDataRecord.totalActiveEnergy` | ⚠️ |
 | Total reactive energy | — | kvarh | `gridConnectionDataRecord.totalReactiveEnergy` | 🔧 💤 ⚠️ |
@@ -39,4 +41,4 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 ---
 
-_Entity totals: 18 — 14 sensor, 4 binary_sensor, 0 switch, 0 number, 0 select, 0 light._
+_Entity totals: 20 — 16 sensor, 4 binary_sensor, 0 switch, 0 number, 0 select, 0 light._

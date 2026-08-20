@@ -1441,7 +1441,41 @@ def _meter_phase_sensors() -> tuple[EcoFlowSensorEntityDescription, ...]:
     return tuple(descs)
 
 
+def _meter_leg_power(role: GridRole):
+    def _fn(quota: Mapping[str, Any]) -> float | None:
+        value = quota.get("powGetSysGrid")
+        if value is None:
+            return None
+        return role.leg_power(float(value))
+
+    return _fn
+
+
 _METER_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
+    EcoFlowIntegralSensorEntityDescription(
+        key="grid_import_energy",
+        translation_key="grid_import_energy",
+        name="Grid import energy",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        suggested_display_precision=1,
+        power_fn=_meter_leg_power(GridRole.IMPORT),
+        available_fn=lambda q: "powGetSysGrid" in q,
+        undocumented=True,
+    ),
+    EcoFlowIntegralSensorEntityDescription(
+        key="grid_export_energy",
+        translation_key="grid_export_energy",
+        name="Grid export energy",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        suggested_display_precision=1,
+        power_fn=_meter_leg_power(GridRole.EXPORT),
+        available_fn=lambda q: "powGetSysGrid" in q,
+        undocumented=True,
+    ),
     EcoFlowSensorEntityDescription(
         key="grid_power",
         translation_key="grid_power",
