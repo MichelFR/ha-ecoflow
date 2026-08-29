@@ -17,6 +17,7 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 |---|---|---|---|---|
 | Battery | battery | % | `cmsBattSoc` |  |
 | Battery (BMS) | battery | % | `bmsBattSoc` | 💤 |
+| Battery (precise) | battery | % | `f32ShowSoc` |  |
 | Battery health | — | % | `cmsBattSoh` | 🔧 |
 | Battery voltage | voltage | V | `vol` | 🔧 |
 | Battery current | current | A | `amp` | 🔧 |
@@ -69,6 +70,8 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Solar string 4 current | current | A | `plugInInfoPv4Amp` | 🔧 💤 |
 | AC socket 1 power | power | W | `powGetSchuko1` |  |
 | AC socket 2 power | power | W | `powGetSchuko2` |  |
+| AC socket 1 inverter power | power | W | `offgrid1ActivePower` | 🔧 ⚠️ |
+| AC socket 2 inverter power | power | W | `offgrid2ActivePower` | 🔧 ⚠️ |
 | AC standby timeout | duration | min | `acStandbyTime` | 🔧 ⚠️ |
 | Solar energy | energy | Wh | _integrated_ |  |
 | Grid import energy | energy | Wh | `gridConnectionPower` |  |
@@ -126,4 +129,4 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 ---
 
-_Entity totals: 83 — 62 sensor, 11 binary_sensor, 4 switch, 4 number, 1 select, 1 light._
+_Entity totals: 86 — 65 sensor, 11 binary_sensor, 4 switch, 4 number, 1 select, 1 light._

@@ -37,6 +37,8 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Wi-Fi signal | signal_strength | dBm | `moduleWifiRssi` | 🔧 💤 |
 | Device role | — | — | `seriesConnectDeviceStatus` | 🔧 💤 ⚠️ |
 | Feed-in power limit | power | W | `feedGridModePowLimit` | 🔧 |
+| Grid input power limit | power | W | `sysGridInPwrLimit` | 🔧 💤 ⚠️ |
+| Busbar power limit | power | W | `busbarPowLimit` | 🔧 💤 ⚠️ |
 
 ## Binary sensors
 
@@ -47,4 +49,4 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 ---
 
-_Entity totals: 24 — 22 sensor, 2 binary_sensor, 0 switch, 0 number, 0 select, 0 light._
+_Entity totals: 26 — 24 sensor, 2 binary_sensor, 0 switch, 0 number, 0 select, 0 light._
