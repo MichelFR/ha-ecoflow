@@ -98,6 +98,7 @@
       "full_energy": { "name": "Batteriekapazität" },
       "cycles": { "name": "Ladezyklen" },
       "bms_batt_soc": { "name": "Batterie (BMS)" },
+      "f32_show_soc": { "name": "Batterie (präzise)" },
       "bat_vol": { "name": "Batteriespannung" },
       "bat_amp": { "name": "Batteriestrom" },
       "accu_chg_energy": { "name": "Gesamt geladen" },

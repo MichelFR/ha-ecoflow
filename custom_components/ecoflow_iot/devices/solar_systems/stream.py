@@ -148,6 +148,17 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         value_fn=_round2,
     ),
     EcoFlowSensorEntityDescription(
+        key="f32_show_soc",
+        translation_key="f32_show_soc",
+        mqtt_key="f32ShowSoc",
+        name="Battery (precise)",
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=2,
+        value_fn=_round2,
+    ),
+    EcoFlowSensorEntityDescription(
         key="soh",
         mqtt_key="cmsBattSoh",
         translation_key="soh",
