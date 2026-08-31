@@ -29,6 +29,7 @@ import {
   houseImageUrl,
 } from "./houses.js";
 import { ACTIVE_W, FlowController, deriveFlowStates } from "./flows.js";
+import { feedInOffBadge, gridReading } from "./grid.js";
 import { spaceCardStyles } from "./space-styles.js";
 
 // The scene's auto-discovered sensor slots (same keys the House card reads).
@@ -522,36 +523,23 @@ export class EcoFlowSpaceCard extends LitElement {
       !ov.slot
     ) {
       const s = this._flowStates();
-      const fromGrid = Number.isFinite(s.loadFromGrid)
-        ? Math.max(0, s.loadFromGrid)
-        : null;
-      const importing = fromGrid != null ? fromGrid > ACTIVE_W : s.grid > ACTIVE_W;
-      const exporting = !importing && s.exportToGrid > ACTIVE_W;
-      const value = importing
-        ? fromGrid != null
-          ? fromGrid
-          : s.grid
-        : exporting
-          ? s.exportToGrid
-          : fromGrid != null
-            ? 0
-            : Math.abs(s.grid || 0);
-      const f = this._fmt("power-abs", value);
+      const r = gridReading(s);
+      const f = this._fmt("power-abs", r.value ?? 0);
       view.num = f.n;
       view.unit = ov.unit ?? f.u;
       view.label =
         ov.label ??
-        (importing
+        (r.importing
           ? this._t("house.from_grid")
-          : exporting
+          : r.exporting
             ? this._t("house.to_grid")
             : this._t("house.grid"));
       if (!view.color) {
-        view.color = importing ? C_IMPORT : exporting ? C_EXPORT : null;
+        view.color = r.importing ? C_IMPORT : r.exporting ? C_EXPORT : null;
       }
       view.entityId =
         ov.tap_entity ||
-        (importing && fromGrid != null
+        (r.importing && r.fromSplit
           ? this._slotEntity(SLOT_LOAD_FROM_GRID)
           : null) ||
         this._slotEntity(SLOT_GRID) ||
@@ -1018,7 +1006,10 @@ export class EcoFlowSpaceCard extends LitElement {
           ${v.num !== ""
             ? html`<span class="ov-value"
                 ><span class="ov-num">${v.num}</span
-                >${v.unit ? html`<span class="ov-unit">${v.unit}</span>` : ""}
+                >${v.unit ? html`<span class="ov-unit">${v.unit}</span>` : ""}${ov.preset ===
+                "grid"
+                  ? feedInOffBadge(this)
+                  : ""}
                 ${v.secondary ? html`<span class="ov-sec">· ${v.secondary}</span>` : ""}</span
               >`
             : ""}

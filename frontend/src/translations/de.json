@@ -21,7 +21,8 @@
     "ac1": "AC 1",
     "ac2": "AC 2",
     "off": "Aus",
-    "confirm_action": "Sind Sie sicher?"
+    "confirm_action": "Sind Sie sicher?",
+    "feed_in_off": "Netzeinspeisung ist aus"
   },
   "house": {
     "home": "Hausnetz",

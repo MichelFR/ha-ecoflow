@@ -11,6 +11,7 @@ import { LitElement, html, svg } from "lit";
 import { CARD_TYPE, assetUrl } from "./const.js";
 import { deviceImageUrl, imageUrlForKey } from "./device-image.js";
 import { ACTIVE_W, deriveFlowStates } from "./flows.js";
+import { feedInOffBadge, gridReading } from "./grid.js";
 import { entityMap, relevantStatesChanged, streamDevices } from "./entities.js";
 import {
   fetchHourlyWh,
@@ -839,46 +840,22 @@ export class EcoFlowEnergyCard extends LitElement {
   }
 
   _gridReading() {
-    const grid = numState(this._state("sensor.grid_power"));
-    if (this._config.grid_source === "device") {
-      return {
-        value: grid != null ? Math.abs(grid) : null,
-        importing: grid != null && grid > ACTIVE_W,
-        exporting: grid != null && grid < -ACTIVE_W,
-        slot: "sensor.grid_power",
-      };
-    }
+    const deviceGrid = this._config.grid_source === "device";
+    const overridden = !!this._config.entities?.["sensor.grid_power"];
     const s = deriveFlowStates({
-      grid,
+      grid: numState(this._state("sensor.grid_power")),
       solar: numState(this._state("sensor.pv_total")),
       load: numState(this._state("sensor.sys_load")),
       bat: numState(this._state("sensor.bat_power")),
-      loadFromGrid: numState(this._state("sensor.load_from_grid")),
-      loadFromPv: numState(this._state("sensor.load_from_pv")),
-      loadFromBat: numState(this._state("sensor.load_from_bat")),
+      loadFromGrid: deviceGrid ? null : numState(this._state("sensor.load_from_grid")),
+      loadFromPv: deviceGrid ? null : numState(this._state("sensor.load_from_pv")),
+      loadFromBat: deviceGrid ? null : numState(this._state("sensor.load_from_bat")),
     });
-    const fromGrid = Number.isFinite(s.loadFromGrid)
-      ? Math.max(0, s.loadFromGrid)
-      : null;
-    const importing =
-      fromGrid != null ? fromGrid > ACTIVE_W : grid != null && grid > ACTIVE_W;
-    const exporting = !importing && s.exportToGrid > ACTIVE_W;
+    const r = gridReading(s, overridden);
     return {
-      value: importing
-        ? fromGrid != null
-          ? fromGrid
-          : grid
-        : exporting
-          ? s.exportToGrid
-          : fromGrid != null
-            ? 0
-            : grid != null
-              ? Math.abs(grid)
-              : null,
-      importing,
-      exporting,
+      ...r,
       slot:
-        importing && fromGrid != null
+        r.importing && r.fromSplit
           ? "sensor.load_from_grid"
           : "sensor.grid_power",
     };
@@ -903,7 +880,7 @@ export class EcoFlowEnergyCard extends LitElement {
     >
       <div class="stat-head"><ha-icon icon=${icon}></ha-icon>${this._t("card.grid")}</div>
       <div class="stat-value">
-        ${this._metric(splitPower(r.value))}
+        ${this._metric(splitPower(r.value))}${feedInOffBadge(this)}
       </div>
       <div class="stat-sub">${label}</div>
     </div>`;

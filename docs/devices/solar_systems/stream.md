@@ -43,9 +43,9 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Battery power | power | W | `powGetBpCms` |  |
 | Available charge power | power | W | `curAvaiToBmsPower` | 🔧 💤 ⚠️ |
 | Load power | power | W | `powGetSysLoad` |  |
-| Load from battery | power | W | `powGetSysLoadFromBp` | 💤 |
-| Load from grid | power | W | `powGetSysLoadFromGrid` | 💤 |
-| Load from solar | power | W | `powGetSysLoadFromPv` | 💤 |
+| Load from battery | power | W | `powGetSysLoadFromBp` |  |
+| Load from grid | power | W | `powGetSysLoadFromGrid` |  |
+| Load from solar | power | W | `powGetSysLoadFromPv` |  |
 | Grid power | power | W | `gridConnectionPower` |  |
 | System grid power | power | W | `sysGridConnectionPower` | 💤 |
 | Grid voltage | voltage | V | `gridConnectionVol` | 🔧 |

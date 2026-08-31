@@ -31,6 +31,7 @@ import {
   houseImageUrl,
 } from "./houses.js";
 import { ACTIVE_W, FlowController, deriveFlowStates } from "./flows.js";
+import { feedInOffBadge, gridReading } from "./grid.js";
 import { houseCardStyles } from "./house-styles.js";
 
 export class EcoFlowHouseCard extends LitElement {
@@ -293,38 +294,22 @@ export class EcoFlowHouseCard extends LitElement {
     const s = this._flowStates();
     const cols = [];
     if (this._show("show_grid")) {
-      // "From grid" is the home load actually drawn from the grid
-      // (load_from_grid), not the Stream's own grid-port reading (grid_power),
-      // which only sees the device's charge/export. "To grid" reads the derived
-      // exportToGrid for the same reason — the port also goes negative while the
-      // device merely feeds the home. Both fall back to the grid_power sign when
-      // the split sensors are absent (e.g. single-battery PowerOcean themes).
-      const fromGrid =
-        blank || !Number.isFinite(s.loadFromGrid) ? null : Math.max(0, s.loadFromGrid);
-      const importing = !blank && (fromGrid != null ? fromGrid > ACTIVE_W : s.grid > ACTIVE_W);
-      const exporting = !blank && !importing && s.exportToGrid > ACTIVE_W;
-      const importValue = fromGrid != null ? fromGrid : s.grid;
+      const overridden = !!this._config.entities?.["sensor.grid_power"];
+      const r = blank
+        ? { value: null, importing: false, exporting: false, fromSplit: false }
+        : gridReading(s, overridden);
       cols.push({
-        slot: importing && fromGrid != null ? "sensor.load_from_grid" : "sensor.grid_power",
+        slot: r.importing && r.fromSplit ? "sensor.load_from_grid" : "sensor.grid_power",
         fallback: "sensor.sys_grid_power",
         anchor: "col-grid",
-        value: blank
-          ? null
-          : importing
-            ? importValue
-            : exporting
-              ? s.exportToGrid
-              : fromGrid != null
-                ? 0
-                : s.grid != null
-                  ? Math.abs(s.grid)
-                  : null,
-        label: importing
+        value: r.value,
+        badge: blank ? "" : feedInOffBadge(this),
+        label: r.importing
           ? this._t("house.from_grid")
-          : exporting
+          : r.exporting
             ? this._t("house.to_grid")
             : this._t("house.grid"),
-        cls: importing ? "import" : exporting ? "export" : "",
+        cls: r.importing ? "import" : r.exporting ? "export" : "",
       });
     }
     if (this._show("show_solar")) {
@@ -357,7 +342,7 @@ export class EcoFlowHouseCard extends LitElement {
           (() => this._moreInfo(this._entityId(c.slot) ? c.slot : c.fallback || c.slot))}
         >
           <div class="stat-value">
-            <span class="num">${split.n}</span><span class="unit">${split.u}</span>
+            <span class="num">${split.n}</span><span class="unit">${split.u}</span>${c.badge || ""}
           </div>
           <div class="stat-label">${c.label}</div>
         </div>`;

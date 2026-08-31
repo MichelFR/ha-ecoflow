@@ -434,7 +434,6 @@ _POWERFLOW_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
-        entity_registry_enabled_default=False,
         value_fn=_round2,
     ),
     EcoFlowSensorEntityDescription(
@@ -445,7 +444,6 @@ _POWERFLOW_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
-        entity_registry_enabled_default=False,
         value_fn=_round2,
     ),
     EcoFlowSensorEntityDescription(
@@ -456,7 +454,6 @@ _POWERFLOW_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
-        entity_registry_enabled_default=False,
         value_fn=_round2,
     ),
 )

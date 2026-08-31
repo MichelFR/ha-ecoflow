@@ -21,7 +21,8 @@
     "ac1": "AC 1",
     "ac2": "AC 2",
     "off": "Off",
-    "confirm_action": "Are you sure?"
+    "confirm_action": "Are you sure?",
+    "feed_in_off": "Grid feed-in is off"
   },
   "house": {
     "home": "Home",
