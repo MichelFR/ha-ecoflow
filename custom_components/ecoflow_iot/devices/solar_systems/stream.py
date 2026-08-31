@@ -155,8 +155,7 @@ _BATTERY_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
-        suggested_display_precision=2,
-        value_fn=_round2,
+        suggested_display_precision=5,
     ),
     EcoFlowSensorEntityDescription(
         key="soh",
