@@ -46,7 +46,7 @@ correctly instead of raising an "unsupported device" repair.
 | `R33` | Delta 2 | high (docs + app registry) |
 | `R35` | Delta 2 Max | high (app registry) |
 | `R62` | River 2 Pro | high (app registry; `R60/R61/R63/R65/R70` are other River models) |
-| `DCABZ` | Delta Pro | medium (app family code is broad `DC`; kept narrow to avoid collisions) |
+| `DCAB` | Delta Pro | high (docs `DCABZ` + field-observed variants, issue #10; app family code is broad `DC`) |
 | `MR5` | Delta Pro 3 | high (app registry) |
 | `Y71` | Delta Pro Ultra | high (app registry) |
 | `D3N`, `D3M` | Delta 3 Max / Delta 3 Max Plus | high (`D3M` shared — disambiguated by quota `powGetPv2`) |

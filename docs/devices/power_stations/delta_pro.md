@@ -2,7 +2,7 @@
 
 <p align="center"><img src="../../../custom_components/ecoflow_iot/www/devices/delta-pro.webp" alt="EcoFlow Delta Pro" width="240"></p>
 
-**Category:** Power Stations · **Auto-detected by SN prefix:** `DCABZ`
+**Category:** Power Stations · **Auto-detected by SN prefix:** `DCAB`
 
 > Generated from `custom_components/ecoflow_iot/devices/power_stations/delta_pro.py` by `scripts/gen_device_docs.py` — do not edit by hand.
 > Every device also exposes an always-available **Connection** diagnostic sensor (MQTT state + data source).

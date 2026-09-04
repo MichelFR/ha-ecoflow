@@ -1101,14 +1101,13 @@ _ENERGY_SENSORS = (
 class DeltaProDevice(EcoFlowDevice):
     """EcoFlow Delta Pro portable power station.
 
-    Serial numbers start with ``DCABZ`` (confirmed by the spec's example URL
-    fragment ``sn=DCABZ***``). Also matched via the distinctive
-    ``bmsMaster.soc`` quota key absent from Stream/other families.
+    Serial numbers start with ``DCAB`` (spec example URL fragment
+    ``sn=DCABZ***``; field units also ship other 5th characters). Also matched
+    via the distinctive ``bmsMaster.soc`` quota key absent from other families.
     """
 
     model = "EcoFlow Delta Pro"
-    # Source: spec example SN fragment "DCABZ***"
-    sn_prefixes: tuple[str, ...] = ("DCABZ",)
+    sn_prefixes: tuple[str, ...] = ("DCAB",)
 
     @classmethod
     def matches(cls, sn: str, quota: Mapping[str, Any]) -> bool:

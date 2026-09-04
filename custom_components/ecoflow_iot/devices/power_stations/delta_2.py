@@ -1445,7 +1445,7 @@ class Delta2Device(EcoFlowDevice):
         if any(sn.startswith(prefix) for prefix in cls.sn_prefixes):
             return True
         # Fallback: quota contains bms_bmsStatus which is distinctive for Delta 2
-        return "bms_bmsStatus.f32ShowSoc" in quota or "pd.wattsInSum" in quota
+        return "bms_bmsStatus.f32ShowSoc" in quota
 
     def entity_descriptions(self, platform: Platform) -> list[_EcoFlowDescription]:
         if platform == Platform.SENSOR:

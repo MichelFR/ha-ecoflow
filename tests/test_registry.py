@@ -101,6 +101,8 @@ cases = [
     ("R351ZFB4HF6L0030", {}, "Delta2MaxDevice"),
     ("R621ZEB1XE8S0029", {}, "River2ProDevice"),
     ("DCABZ12345678", {}, "DeltaProDevice"),
+    ("DCABA12345678", {}, "DeltaProDevice"),
+    ("DXXX12345678", {"bmsMaster.soc": 50, "pd.wattsInSum": 0}, "DeltaProDevice"),
     ("MR51ZAS2PG330026", {}, "DeltaPro3Device"),
     ("Y711ZAB4SFAU0069", {}, "DeltaProUltraDevice"),
     ("D3N1ZE1A9HCE0009", {}, "Delta3MaxDevice"),
