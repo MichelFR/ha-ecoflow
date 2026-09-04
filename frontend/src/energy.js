@@ -207,7 +207,7 @@ export async function fetchEnergyTotals(hass) {
   // Standard HA energy balance: what the home actually consumed today.
   const consumption = solar + gridImport + batOut - gridExport - batIn;
   const independence =
-    consumption > 0
+    ids.gridFrom.length && consumption > 0
       ? Math.max(0, Math.min(100, Math.round((1 - gridImport / consumption) * 100)))
       : null;
   return { solar, gridImport, gridExport, batIn, batOut, consumption, independence };

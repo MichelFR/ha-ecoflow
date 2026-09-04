@@ -29,6 +29,7 @@ from homeassistant.const import (
     UnitOfTemperature,
     UnitOfTime,
 )
+from homeassistant.exceptions import HomeAssistantError
 
 from ..base import (
     EcoFlowBinarySensorEntityDescription,
@@ -97,7 +98,15 @@ def _current_operating_mode(quota: Mapping[str, Any]) -> str | None:
     return None
 
 
+_SETTABLE_MODES = (_MODE_SELF_POWERED, _MODE_INTELLIGENT)
+
+
 def _operating_mode_command(option: str, _quota: Mapping[str, Any]) -> dict[str, Any]:
+    if option not in _SETTABLE_MODES:
+        raise HomeAssistantError(
+            f"Operating mode '{option}' cannot be set through the EcoFlow open API "
+            "(only self_powered and intelligent are accepted); use the EcoFlow app"
+        )
     flag = _MODE_FLAGS[option]
     return {"cfgEnergyStrategyOperateMode": {flag: True}}
 
