@@ -85,7 +85,8 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 | Discharge lower limit | — | % | `ems.minDsgSoc` | 🔧 💤 |
 | Generator auto-on threshold | — | % | `ems.minOpenOilEbSoc` | 🔧 💤 |
 | Generator auto-off threshold | — | % | `ems.maxCloseOilEbSoc` | 🔧 💤 |
-| EMS LCD SOC | battery | % | `ems.lcdShowSoc` | 🔧 💤 |
+| Battery (all packs) | battery | % | `ems.lcdShowSoc` |  |
+| Battery (all packs, precise) | battery | % | `ems.f32LcdShowSoc` | 🔧 💤 |
 | Solar energy | energy | Wh | _integrated_ |  |
 | Battery charge energy | energy | Wh | _integrated_ |  |
 | Battery discharge energy | energy | Wh | _integrated_ |  |
@@ -138,4 +139,4 @@ Legend: 🔧 = diagnostic entity · 💤 = disabled by default · 🌐 = HTTP-on
 
 ---
 
-_Entity totals: 102 — 76 sensor, 10 binary_sensor, 5 switch, 9 number, 2 select, 0 light._
+_Entity totals: 103 — 77 sensor, 10 binary_sensor, 5 switch, 9 number, 2 select, 0 light._

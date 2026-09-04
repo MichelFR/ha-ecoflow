@@ -769,14 +769,162 @@ _EMS_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
     EcoFlowSensorEntityDescription(
         key="ems_lcd_show_soc",
         mqtt_key="ems.lcdShowSoc",
-        name="EMS LCD SOC",
+        name="Battery (all packs)",
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+    EcoFlowSensorEntityDescription(
+        key="ems_f32_lcd_show_soc",
+        mqtt_key="ems.f32LcdShowSoc",
+        name="Battery (all packs, precise)",
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
+        suggested_display_precision=5,
     ),
 )
+
+
+# ---------------------------------------------------------------------------
+# Extra battery packs  (prefix: bmsSlave1 / bmsSlave2, undocumented — present in
+# the quota only while an extra battery is connected)
+# ---------------------------------------------------------------------------
+
+_EXTRA_BATTERY_MAX = 2
+
+
+def _extra_battery_sensors(quota: Mapping[str, Any]) -> list[EcoFlowSensorEntityDescription]:
+    descs: list[EcoFlowSensorEntityDescription] = []
+    for n in range(1, _EXTRA_BATTERY_MAX + 1):
+        prefix = f"bmsSlave{n}"
+        if not any(k.startswith(f"{prefix}.") for k in quota):
+            continue
+        label = f"Extra battery {n}"
+        present = lambda q, _p=prefix: any(k.startswith(f"{_p}.") for k in q)
+        descs.extend(
+            (
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_soc",
+                    mqtt_key=f"{prefix}.soc",
+                    name=label,
+                    device_class=SensorDeviceClass.BATTERY,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=PERCENTAGE,
+                    available_fn=present,
+                    icon_fn=lambda q, _p=prefix: battery_charging_icon(
+                        q.get(f"{_p}.soc"), float(q.get(f"{_p}.inputWatts") or 0) > 0
+                    ),
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_f32_show_soc",
+                    mqtt_key=f"{prefix}.f32ShowSoc",
+                    name=f"{label} SOC (precise)",
+                    device_class=SensorDeviceClass.BATTERY,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=PERCENTAGE,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    entity_registry_enabled_default=False,
+                    suggested_display_precision=5,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_input_watts",
+                    mqtt_key=f"{prefix}.inputWatts",
+                    name=f"{label} input power",
+                    device_class=SensorDeviceClass.POWER,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=UnitOfPower.WATT,
+                    value_fn=_round2,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_output_watts",
+                    mqtt_key=f"{prefix}.outputWatts",
+                    name=f"{label} output power",
+                    device_class=SensorDeviceClass.POWER,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=UnitOfPower.WATT,
+                    value_fn=_round2,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_temp",
+                    mqtt_key=f"{prefix}.temp",
+                    name=f"{label} temperature",
+                    device_class=SensorDeviceClass.TEMPERATURE,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_vol",
+                    mqtt_key=f"{prefix}.vol",
+                    name=f"{label} voltage",
+                    device_class=SensorDeviceClass.VOLTAGE,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    entity_registry_enabled_default=False,
+                    value_fn=_round2,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_amp",
+                    mqtt_key=f"{prefix}.amp",
+                    name=f"{label} current",
+                    device_class=SensorDeviceClass.CURRENT,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    entity_registry_enabled_default=False,
+                    value_fn=_round2,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_soh",
+                    mqtt_key=f"{prefix}.soh",
+                    name=f"{label} health",
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement=PERCENTAGE,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    value_fn=_round2,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_cycles",
+                    mqtt_key=f"{prefix}.cycles",
+                    name=f"{label} cycles",
+                    state_class=SensorStateClass.TOTAL_INCREASING,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    value_fn=_int_val,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_remain_cap",
+                    mqtt_key=f"{prefix}.remainCap",
+                    name=f"{label} remaining capacity",
+                    device_class=SensorDeviceClass.ENERGY_STORAGE,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    entity_registry_enabled_default=False,
+                    available_fn=present,
+                ),
+                EcoFlowSensorEntityDescription(
+                    key=f"bms_slave{n}_full_cap",
+                    mqtt_key=f"{prefix}.fullCap",
+                    name=f"{label} full capacity",
+                    device_class=SensorDeviceClass.ENERGY_STORAGE,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    entity_registry_enabled_default=False,
+                    available_fn=present,
+                ),
+            )
+        )
+    return descs
 
 # ---------------------------------------------------------------------------
 # Binary sensors
@@ -1118,6 +1266,13 @@ class DeltaProDevice(EcoFlowDevice):
         if any(sn.startswith(p) for p in cls.sn_prefixes):
             return True
         return bool(quota) and "bmsMaster.soc" in quota
+
+    def dynamic_entity_descriptions(
+        self, platform: Platform, quota: Mapping[str, Any]
+    ) -> list[_EcoFlowDescription]:
+        if platform == Platform.SENSOR:
+            return list(_extra_battery_sensors(quota))
+        return []
 
     def entity_descriptions(self, platform: Platform) -> list[_EcoFlowDescription]:
         if platform == Platform.SENSOR:

@@ -116,6 +116,9 @@ def install_stub():
     const = types.ModuleType("homeassistant.const")
     const.__getattr__ = lambda name: Auto(name)
     sys.modules["homeassistant.const"] = const
+    exc = types.ModuleType("homeassistant.exceptions")
+    exc.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
+    sys.modules["homeassistant.exceptions"] = exc
     sys.path.insert(0, str(CC))
     pkg = types.ModuleType("ecoflow_iot")
     pkg.__path__ = [str(CC / "ecoflow_iot")]
