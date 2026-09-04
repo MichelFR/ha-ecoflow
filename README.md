@@ -16,7 +16,7 @@ number. Adding another device later is a single new module.
 
 ## Supported devices
 
-Resolved automatically by serial-number prefix (with quota-based fallback). ~1,190
+Resolved automatically by serial-number prefix (with quota-based fallback). ~1,290
 entities are mapped across the fleet from the official quota schemas. Each link below
 lists every sensor / binary sensor / switch / number / select for that device
 (generated from the code — see [`docs/devices/`](docs/devices/README.md)).

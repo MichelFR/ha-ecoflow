@@ -27,7 +27,7 @@ entities.
 
 ## Supported devices
 
-Resolved automatically by serial-number prefix. ~1,190 entities are mapped across the
+Resolved automatically by serial-number prefix. ~1,290 entities are mapped across the
 fleet from the official quota schemas. Each link lists every entity for that device:
 
 | Category | Devices |

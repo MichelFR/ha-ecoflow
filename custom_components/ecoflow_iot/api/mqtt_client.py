@@ -182,7 +182,7 @@ class EcoFlowMqttClient:
         try:
             payload = json.loads(msg.payload.decode("utf-8"))
         except (ValueError, UnicodeDecodeError):
-            _LOGGER.debug("EcoFlow MQTT: undecodable payload on %s", msg.topic)
+            _LOGGER.debug("EcoFlow MQTT: undecodable payload on …/%s", msg.topic.rsplit("/", 1)[-1])
             return
         self._loop.call_soon_threadsafe(self._dispatch, msg.topic, payload)
 

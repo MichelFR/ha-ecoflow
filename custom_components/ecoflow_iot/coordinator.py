@@ -40,6 +40,7 @@ from .const import (
     OPERATE_LATEST_QUOTAS,
     SET_ACK_TIMEOUT,
     SN_PREFIX_LEN,
+    redact_sn,
 )
 from .devices import EcoFlowDevice, is_silenced, resolve_device
 from .models import Certification, ConnectionState, DataSource, DeviceState
@@ -144,13 +145,13 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
                     not_served = True
                     _LOGGER.info(
                         "EcoFlow device %s is not served by the open API (%s); skipping",
-                        sn[:SN_PREFIX_LEN],
+                        redact_sn(sn),
                         err.message,
                     )
                 else:
-                    _LOGGER.warning("Initial quota fetch failed for %s: %s", sn, err)
+                    _LOGGER.warning("Initial quota fetch failed for %s: %s", redact_sn(sn), err)
             except EcoFlowError as err:
-                _LOGGER.warning("Initial quota fetch failed for %s: %s", sn, err)
+                _LOGGER.warning("Initial quota fetch failed for %s: %s", redact_sn(sn), err)
             device = None if not_served else resolve_device(sn, state.quota)
             if device is None:
                 # Devices the open API refuses to serve (error 1006, e.g. Delta
@@ -243,7 +244,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             try:
                 await mqtt.async_publish_get(sn, payload)
             except (RuntimeError, OSError) as err:
-                _LOGGER.debug("Active MQTT refresh failed for %s: %s", sn, err)
+                _LOGGER.debug("Active MQTT refresh failed for %s: %s", redact_sn(sn), err)
 
     async def _async_refresh_certification(self) -> None:
         """Re-fetch broker credentials after an auth failure and reconnect."""
@@ -320,7 +321,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             try:
                 quota = await self._http.get_all_quota(sn)
             except EcoFlowError as err:
-                _LOGGER.debug("HTTP poll failed for %s: %s", sn, err)
+                _LOGGER.debug("HTTP poll failed for %s: %s", redact_sn(sn), err)
                 continue
             state = self.data.get(sn)
             if state is None:
@@ -349,7 +350,7 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             try:
                 quota = await self._http.get_all_quota(sn)
             except EcoFlowError as err:
-                _LOGGER.debug("HTTP-only refresh failed for %s: %s", sn, err)
+                _LOGGER.debug("HTTP-only refresh failed for %s: %s", redact_sn(sn), err)
                 continue
             state = self.data.get(sn)
             if state is not None:
@@ -445,13 +446,13 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
                 if await self._mqtt.async_publish_set(sn, payload, SET_ACK_TIMEOUT):
                     await self.async_request_refresh()
                     return
-                _LOGGER.debug("MQTT set unacknowledged for %s, falling back", sn)
+                _LOGGER.debug("MQTT set unacknowledged for %s, falling back", redact_sn(sn))
             except (RuntimeError, OSError) as err:
-                _LOGGER.debug("MQTT publish failed for %s: %s", sn, err)
+                _LOGGER.debug("MQTT publish failed for %s: %s", redact_sn(sn), err)
 
         # HTTP fallback.
         try:
             await self._http.set_quota(sn, envelope)
         except EcoFlowError as err:
-            raise HomeAssistantError(f"EcoFlow command failed for {sn}: {err}") from err
+            raise HomeAssistantError(f"EcoFlow command failed for {redact_sn(sn)}: {err}") from err
         await self.async_request_refresh()

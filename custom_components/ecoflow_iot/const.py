@@ -82,6 +82,13 @@ SET_ACK_TIMEOUT: Final = 8.0  # seconds to await an MQTT set_reply before HTTP f
 # unsupported devices (the full serial is never surfaced).
 SN_PREFIX_LEN: Final = 4
 
+
+def redact_sn(sn: str) -> str:
+    """Serial as shown in logs and error messages: type prefix + last 3 chars."""
+    if len(sn) <= SN_PREFIX_LEN + 3:
+        return sn[:SN_PREFIX_LEN] + "…"
+    return f"{sn[:SN_PREFIX_LEN]}…{sn[-3:]}"
+
 # quota/all business code for devices the open API refuses to serve at all
 # ("current device is not allowed to get device info"), e.g. Delta Mini, River 2.
 API_CODE_DEVICE_NOT_ALLOWED: Final = "1006"
