@@ -38,6 +38,11 @@ yet — check [`KNOWN_PREFIXES.md`](KNOWN_PREFIXES.md), and if it's missing plea
 [open an issue](https://github.com/MichelFR/ha-ecoflow-iot/issues) with the prefix (not your
 full serial) so it can be added.
 
+Some devices **cannot** be supported because EcoFlow's open API does not serve them:
+the legacy **Delta Mini** and **River 2** (API error 1006), and the **EcoFlow x Shelly**
+plug / meter (use the native Shelly integration instead). They are skipped silently;
+the full list is in [`KNOWN_PREFIXES.md`](KNOWN_PREFIXES.md#recognised-but-not-supported-silenced--no-repair-raised).
+
 ## Features
 
 - **MQTT-first, HTTP fallback** — real-time push updates over TLS MQTT; HTTP polling

@@ -110,12 +110,13 @@ def resolve_device(sn: str, quota: Mapping[str, Any]) -> EcoFlowDevice | None:
     return None
 
 
-# EcoFlow "x Shelly" devices (SN prefix SM2A = plug, SM3A = Pro3EM meter). These
-# are third-party devices served only by EcoFlow's private app API — the open
-# developer API this integration uses returns no data for them, so they can't be
-# supported. They are recognised here purely so the coordinator skips them
-# silently instead of raising an "unsupported device" repair.
-SILENCED_SN_PREFIXES: tuple[str, ...] = ("SM2A", "SM3A")
+# Devices the open developer API does not serve, so they can't be supported.
+# They are recognised here purely so the coordinator skips them silently
+# instead of raising an "unsupported device" repair:
+#   SM2A / SM3A — EcoFlow x Shelly plug / Pro3EM meter (private app API only)
+#   DBAB        — Delta Mini, R60 — River 2 (quota/all answers API error 1006,
+#                 "current device is not allowed to get device info")
+SILENCED_SN_PREFIXES: tuple[str, ...] = ("SM2A", "SM3A", "DBAB", "R60")
 
 
 def is_silenced(sn: str) -> bool:

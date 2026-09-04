@@ -82,6 +82,10 @@ SET_ACK_TIMEOUT: Final = 8.0  # seconds to await an MQTT set_reply before HTTP f
 # unsupported devices (the full serial is never surfaced).
 SN_PREFIX_LEN: Final = 4
 
+# quota/all business code for devices the open API refuses to serve at all
+# ("current device is not allowed to get device info"), e.g. Delta Mini, River 2.
+API_CODE_DEVICE_NOT_ALLOWED: Final = "1006"
+
 MANUFACTURER: Final = "EcoFlow"
 
 # --- Bundled Lovelace card ---------------------------------------------------

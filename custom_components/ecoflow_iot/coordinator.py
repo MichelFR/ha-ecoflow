@@ -29,8 +29,9 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import EcoFlowError, EcoFlowHttpClient, EcoFlowMqttClient
+from .api import EcoFlowApiError, EcoFlowError, EcoFlowHttpClient, EcoFlowMqttClient
 from .const import (
+    API_CODE_DEVICE_NOT_ALLOWED,
     DEFAULT_MQTT_REFRESH_INTERVAL,
     DEFAULT_MQTT_STALE_SECONDS,
     DEFAULT_POLL_INTERVAL,
@@ -133,18 +134,30 @@ class EcoFlowCoordinator(DataUpdateCoordinator[dict[str, DeviceState]]):
             if not sn:
                 continue
             state = DeviceState(sn=sn, online=bool(item.get("online", 1)))
+            not_served = False
             try:
                 state.quota = await self._http.get_all_quota(sn)
                 state.data_source = DataSource.HTTP
                 state.last_full_ts = time.time()
+            except EcoFlowApiError as err:
+                if err.code == API_CODE_DEVICE_NOT_ALLOWED:
+                    not_served = True
+                    _LOGGER.info(
+                        "EcoFlow device %s is not served by the open API (%s); skipping",
+                        sn[:SN_PREFIX_LEN],
+                        err.message,
+                    )
+                else:
+                    _LOGGER.warning("Initial quota fetch failed for %s: %s", sn, err)
             except EcoFlowError as err:
                 _LOGGER.warning("Initial quota fetch failed for %s: %s", sn, err)
-            device = resolve_device(sn, state.quota)
+            device = None if not_served else resolve_device(sn, state.quota)
             if device is None:
-                # Known third-party devices (EcoFlow x Shelly) can't be served by
-                # the open API, so skip them silently. Genuinely unknown devices
-                # raise a repair so support can be added.
-                if not is_silenced(sn):
+                # Devices the open API refuses to serve (error 1006, e.g. Delta
+                # Mini / River 2) and known third-party devices (EcoFlow x Shelly)
+                # are skipped silently. Genuinely unknown devices raise a repair
+                # so support can be added.
+                if not not_served and not is_silenced(sn):
                     self._notify_unsupported(sn)
                 self.unmapped[sn] = state
                 continue

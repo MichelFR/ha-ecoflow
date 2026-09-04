@@ -73,6 +73,11 @@ raising an "unsupported device" repair (see `SILENCED_SN_PREFIXES` in
 |---|---|---|
 | `SM2A` | EcoFlow x Shelly Plug (app `sm002`) | Third-party device served only by EcoFlow's private app API (`/iot-smart-voice/thirdDevice/...`, user-login auth). The open API returns no quota. These are genuine Shelly Gen2 devices — use Home Assistant's native **Shelly** integration for local data + control. |
 | `SM3A` | EcoFlow x Shelly Pro3EM meter (app `sm003`) | Same as above. |
+| `DBAB` | Delta Mini | Legacy model not served by the open API: `quota/all` answers error `1006` ("current device is not allowed to get device info"). Not in the developer docs. Field-observed, issue #13. |
+| `R60` | River 2 (256 Wh) | Same as above (`R61` River 2 Max is probably the same, unconfirmed). Field-observed, issue #13. |
+
+Any other device whose `quota/all` returns error `1006` is skipped silently as
+well, without needing a prefix entry here.
 
 ## Sources
 

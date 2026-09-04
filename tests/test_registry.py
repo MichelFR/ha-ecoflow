@@ -79,6 +79,9 @@ from ecoflow_iot.devices import (  # noqa: E402
 # Silenced third-party devices: recognised but intentionally unsupported.
 assert is_silenced("SM2AE4B063E5168C"), "SM2A should be silenced"
 assert is_silenced("SM3AZAB1234567890"), "SM3A should be silenced"
+assert is_silenced("DBABZ5XE1234567"), "DBAB (Delta Mini) should be silenced"
+assert is_silenced("R601ZAB5HEBH0000"), "R60 (River 2) should be silenced"
+assert not is_silenced("R621ZEB1XE8S0029"), "R62 (River 2 Pro) must not be silenced"
 assert not is_silenced("HW52ZDH1RF3J0033"), "HW52 must not be silenced"
 
 PLATFORMS = [Auto("Platform.SENSOR"), Auto("Platform.BINARY_SENSOR"),
@@ -100,6 +103,8 @@ cases = [
     # open API) — resolve_device returns None; the coordinator skips them
     # without a repair (see is_silenced / SILENCED_SN_PREFIXES).
     ("SM2AE4B063E5168C", {}, None),
+    ("DBABZ5XE1234567", {}, None),
+    ("R601ZAB5HEBH0000", {}, None),
     ("R331ZEB4ZEAL0528", {}, "Delta2Device"),
     ("R351ZFB4HF6L0030", {}, "Delta2MaxDevice"),
     ("R621ZEB1XE8S0029", {}, "River2ProDevice"),
