@@ -48,8 +48,11 @@ from ..helpers import (
     milli as _scale_ma,
     milli as _scale_mv,
     round2 as _round2,
+    scaler,
     to_int as _int_val,
 )
+
+_scale_dw = scaler(10)
 
 # ---------------------------------------------------------------------------
 # Value helpers
@@ -393,7 +396,7 @@ _MPPT_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
-        value_fn=_round2,
+        value_fn=_scale_dw,
     ),
     EcoFlowSensorEntityDescription(
         key="mppt_in_vol",
@@ -424,7 +427,7 @@ _MPPT_SENSORS: tuple[EcoFlowSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=_round2,
+        value_fn=_scale_dw,
     ),
     EcoFlowSensorEntityDescription(
         key="mppt_temp",
@@ -1089,7 +1092,7 @@ _SELECTS: tuple[EcoFlowSelectEntityDescription, ...] = (
 # ---------------------------------------------------------------------------
 
 _ENERGY_SENSORS = (
-    solar_energy("mppt.inWatts"),
+    solar_energy(("mppt.inWatts", 10)),
     *battery_charge_discharge(["bmsMaster.inputWatts"], ["bmsMaster.outputWatts"]),
 )
 
